@@ -15,7 +15,7 @@ class Equipe:
         self.jogo = jogo
         self.jogadores = []
 
-    def adicionar_jogadores(self):
+    def adicionar_jogadores(self, jogador):
         self.jogadores.append(jogador)
 
     def listar_jogadores(self):
