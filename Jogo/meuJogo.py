@@ -1,4 +1,5 @@
 import arcade
+import random 
 
 class Player(arcade.Sprite):
     def __init__(self):
@@ -16,6 +17,19 @@ class Player(arcade.Sprite):
         elif self.change_x < 0:
             self.texture = self.textura_esquerda
 
+        if self.right > 800:
+            self.right = 800
+            self.change_x = 0
+        if self.top > 600:
+            self.top = 600
+            self.change_y = 0
+        if self.left < 0:
+            self.change_x = 0
+            self.left = 0
+        if self.bottom < 0:
+            self.bottom = 0
+            self.change_y = 0
+
 class Moeda(arcade.Sprite):
     def __init__(self):
         super().__init__("Jogo/moeda.png", scale = 0.9)
@@ -24,29 +38,22 @@ class Moeda(arcade.Sprite):
         self.center_x += self.change_x
         self.center_y += self.change_y 
 
-        if self.right > 800:
-            self.right = 800
-            self.change_x = 0
-        if self.top > 600:
-            self.top = 600
-            self.change_y = 0
-        if self.left < 0:
-            self.left = 0
-            self.change_x = 0
-        if self.bottom < 0:
-            self.bottom = 0
-            self.change_y = 0
+        if self.right > 800 or self.left < 0:
+            self.change_x *= -1
+        if self.top > 600 or self.bottom < 0:
+            self.change_y *= -1
 
 class JanelaJogo(arcade.Window):
     def __init__(self):
         super().__init__(800, 600, "Jogo da Mica")
         arcade.set_background_color((54, 6, 6))
 
-        self.velocidade = 2
+        self.velocidade = 3
 
         self.jogador = Player()
-        self.jogador.center_x = 400
-        self.jogador.center_y = 300
+        self.jogador.left = 0
+        self.jogador.bottom = 0       
+
         self.sprite_jogador = arcade.SpriteList()
         self.sprite_jogador.append(self.jogador)
 
@@ -59,6 +66,12 @@ class JanelaJogo(arcade.Window):
         self.sprite_moeda = arcade.SpriteList()
         self.sprite_moeda.append(self.moeda)
 
+        for i in range (25):
+            self.moeda_simples = Moeda()
+            self.moeda_simples.center_x = random.randint(50, 750)
+            self.moeda_simples.center_y = random.randint(50, 550)
+            self.sprite_moeda.append(self.moeda_simples)
+
     def on_draw(self):
         self.clear()
 
@@ -69,9 +82,33 @@ class JanelaJogo(arcade.Window):
         self.sprite_jogador.update(delta_time)
         self.sprite_moeda.update(delta_time)
 
+        moedas_colididas = arcade.check_for_collision_with_list(self.jogador, self.sprite_moeda)
+        for moeda in moedas_colididas:
+            moeda.remove_from_sprite_lists()
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.A: 
+            self.jogador.change_x = -self.velocidade
+        elif key == arcade.key.D:
+            self.jogador.change_x = self.velocidade
+        elif key == arcade.key.W:
+            self.jogador.change_y = self.velocidade
+        elif key == arcade.key.S:
+            self.jogador.change_y = -self.velocidade
+
+        if key == arcade.key.ESCAPE:
+            self.close()
+
+    def on_key_release(self, key, modifiers):
+        if key == arcade.key.A or key == arcade.key.D:
+            self.jogador.change_x = 0
+        elif key == arcade.key.W or key == arcade.key.S:
+            self.jogador.change_y = 0
+
 def main():
     tela = JanelaJogo()
     arcade.run()
+
 if __name__ == "__main__":
     main()
 
