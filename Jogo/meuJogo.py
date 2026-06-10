@@ -72,11 +72,15 @@ class JanelaJogo(arcade.Window):
             self.moeda_simples.center_y = random.randint(50, 550)
             self.sprite_moeda.append(self.moeda_simples)
 
+            self.pontuacao = 0 
+
     def on_draw(self):
         self.clear()
 
         self.sprite_jogador.draw()
         self.sprite_moeda.draw()
+
+        arcade.draw_text(f"Pontuação: {self.pontuacao}", 10, 570, arcade.color.WHITE, 20)
 
     def on_update(self, delta_time):
         self.sprite_jogador.update(delta_time)
@@ -85,6 +89,7 @@ class JanelaJogo(arcade.Window):
         moedas_colididas = arcade.check_for_collision_with_list(self.jogador, self.sprite_moeda)
         for moeda in moedas_colididas:
             moeda.remove_from_sprite_lists()
+            self.pontuacao += 1
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.A: 
