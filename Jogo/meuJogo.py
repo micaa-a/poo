@@ -32,7 +32,7 @@ class Player(arcade.Sprite):
 
 class Inimigo(arcade.Sprite):
     def __init__(self):
-        super().__init__("inimigo.png", scale = 0.9)
+        super().__init__("inimigo.png", scale = 1.5)
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
