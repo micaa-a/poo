@@ -3,10 +3,10 @@ import random
 
 class Player(arcade.Sprite):
     def __init__(self):
-        super().__init__("nave_direita.png", scale=1.5)
+        super().__init__("Jogo/nave_direita.png", scale=1.5)
 
-        self.textura_direita = arcade.load_texture("nave_direita.png")
-        self.textura_esquerda = arcade.load_texture("nave_esquerda.png")
+        self.textura_direita = arcade.load_texture("Jogo/nave_direita.png")
+        self.textura_esquerda = arcade.load_texture("Jogo/nave_esquerda.png")
 
     def update(self, delta_time):
         self.center_x += self.change_x
@@ -32,7 +32,7 @@ class Player(arcade.Sprite):
 
 class Inimigo(arcade.Sprite):
     def __init__(self):
-        super().__init__("meteoro.png", scale = 0.6)
+        super().__init__("Jogo/meteoro.png", scale = 0.6)
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
@@ -48,7 +48,7 @@ class Inimigo(arcade.Sprite):
 
 class InimigoEspecial(arcade.Sprite):
     def __init__(self, jogo):
-        super().__init__("meteoro_grande.png", scale=0.5)
+        super().__init__("Jogo/meteoro_grande.png", scale=0.5)
         self.jogo = jogo
 
     def update(self, delta_time):
@@ -72,7 +72,7 @@ class InimigoEspecial(arcade.Sprite):
 
 class Moeda(arcade.Sprite):
     def __init__(self):
-        super().__init__("estrela.png", scale = 1.5)
+        super().__init__("Jogo/estrela.png", scale = 1.5)
 
     def update(self, delta_time):
         self.center_x += self.change_x
@@ -85,7 +85,7 @@ class Moeda(arcade.Sprite):
 
 class MoedaEspecial(arcade.Sprite):
     def __init__(self):
-        super().__init__("estrela.png", scale = 1.5)
+        super().__init__("Jogo/estrela.png", scale = 1.5)
 
     def update(self, delta_time):
         self.center_x += self.change_x
@@ -122,7 +122,7 @@ class SobreView(arcade.View):
         super().__init__()
         self.autora_sprite = arcade.SpriteList()
 
-        self.avatar = arcade.Sprite("mica.png", scale=0.5) 
+        self.avatar = arcade.Sprite("Jogo/mica.png", scale=0.5) 
         self.avatar.center_x = 400
         self.avatar.center_y = 170
         self.autora_sprite.append(self.avatar)
@@ -212,7 +212,7 @@ class JogoView(arcade.View):
 
         self.velocidade = 3
 
-        self.fundo = arcade.load_texture("fundo.png")
+        self.fundo = arcade.load_texture("Jogo/fundo.png")
 
         self.setup()
 
