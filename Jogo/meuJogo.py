@@ -55,19 +55,19 @@ class InimigoEspecial(arcade.Sprite):
         velocidade_inimigo = 1.5
 
         if jogador.center_x > self.center_x:
-            self.center_x += velocidade_inimigo
+            self.change_x = velocidade_inimigo
         else:
-            self.center_x -= velocidade_inimigo
+            self.change_x = -velocidade_inimigo
 
-        if jogador.center_y > self.center_y:
-            self.center_y += velocidade_inimigo
-        else:
-            self.center_y -= velocidade_inimigo
+        # if jogador.center_y > self.center_y:
+        #     self.center_y += velocidade_inimigo
+        # else:
+        #     self.center_y -= velocidade_inimigo
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
         self.center_x = random.randint(50, 750)
-        self.center_y = random.randint(50, 550)
+        self.center_y = 90
 
 class Moeda(arcade.Sprite):
     def __init__(self):
@@ -113,7 +113,7 @@ class InstrucoesView(arcade.View):
         arcade.draw_text("Pressione M para voltar ao menu", 400, 120, arcade.color.WHITE, 16, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.M:
+        if key == arcade.key.M or key == arcade.key.ESCAPE:
             self.window.show_view(MenuView())
 
 class SobreView(arcade.View):
@@ -143,7 +143,7 @@ class SobreView(arcade.View):
         arcade.draw_text("Pressione M para voltar ao menu", 400, 80, arcade.color.WHITE, 16, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.M:
+        if key == arcade.key.M or key == arcade.key.ESCAPE:
             self.window.show_view(MenuView())
 
 class MenuView(arcade.View):
@@ -267,7 +267,7 @@ class JogoView(arcade.View):
             player_sprite = self.jogador,
             walls = self.sprite_blocos,
             gravity_constant=0.5)
-        
+
         self.moeda = Moeda()
         self.moeda.center_x = 150
         self.moeda.center_y = 100
@@ -299,8 +299,12 @@ class JogoView(arcade.View):
         self.inimigo_especial.center_y = 300
         self.sprite_inimigos.append(self.inimigo_especial)
 
-        self.pontuacao_maxima = 25 + 1 + 5
+        self.engine_fisica_inimigo_especial = arcade.PhysicsEnginePlatformer(
+                player_sprite = self.inimigo_especial,
+                walls = self.sprite_blocos,
+                gravity_constant=0.5)
 
+        self.pontuacao_maxima = 25 + 1 + 5
         
     def on_draw(self):
         self.clear()
@@ -322,9 +326,7 @@ class JogoView(arcade.View):
     def on_update(self, delta_time):
 
         self.engine_fisica.update()
-
-        self.sprite_moeda.update(delta_time)
-        self.sprite_jogador.update(delta_time)
+        self.engine_fisica_inimigo_especial.update()
 
         if not self.jogo_finalizado:
             self.tempo += delta_time
