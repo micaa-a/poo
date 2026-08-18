@@ -1,16 +1,21 @@
 import arcade
 import random 
 
+class Bloco(arcade.Sprite):
+    def __init__(self, x: float, y: float):
+        super().__init__("Jogo/bloco.png", scale = 0.2)
+        self.center_x = x
+        self.center_y = y
+
 class Player(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/nave_direita.png", scale=1.5)
+        super().__init__("Jogo/player_direita.png", scale=0.02)
 
-        self.textura_direita = arcade.load_texture("Jogo/nave_direita.png")
-        self.textura_esquerda = arcade.load_texture("Jogo/nave_esquerda.png")
+        self.textura_direita = arcade.load_texture("Jogo/player_direita.png")
+        self.textura_esquerda = arcade.load_texture("Jogo/player_esquerda.png")
 
     def update(self, delta_time):
         self.center_x += self.change_x
-        self.center_y += self.change_y
         
         if self.change_x > 0:
             self.texture = self.textura_direita
@@ -18,21 +23,15 @@ class Player(arcade.Sprite):
             self.texture = self.textura_esquerda
 
         if self.right > 800:
-            self.right = 800
             self.change_x = 0
-        if self.top > 600:
-            self.top = 600
-            self.change_y = 0
+            self.right = 800
         if self.left < 0:
             self.change_x = 0
             self.left = 0
-        if self.bottom < 0:
-            self.bottom = 0
-            self.change_y = 0
 
 class Inimigo(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/meteoro.png", scale = 0.6)
+        super().__init__("Jogo/inimigo.png", scale = 1)
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
@@ -48,7 +47,7 @@ class Inimigo(arcade.Sprite):
 
 class InimigoEspecial(arcade.Sprite):
     def __init__(self, jogo):
-        super().__init__("Jogo/meteoro_grande.png", scale=0.5)
+        super().__init__("Jogo/inimigo.png", scale=0.9)
         self.jogo = jogo
 
     def update(self, delta_time):
@@ -148,11 +147,19 @@ class SobreView(arcade.View):
             self.window.show_view(MenuView())
 
 class MenuView(arcade.View):
+    def __init__(self):
+        super().__init__()
+
+        self.fundo_menu = arcade.load_texture("Jogo/fundo_menu.png")
+
     def on_show_view(self):
-        arcade.set_background_color((11, 5, 33))
+        pass
 
     def on_draw(self):
         self.clear()
+
+        arcade.draw_texture_rect(self.fundo_menu, arcade.XYWH(400, 300, 800, 600))
+
         arcade.draw_text("Cosmic Run", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
         arcade.draw_text("[J] Jogar", 400, 320, arcade.color.WHITE, 20, anchor_x="center")
         arcade.draw_text("[I] Instruções", 400, 280, arcade.color.WHITE, 20, anchor_x="center")
@@ -179,8 +186,13 @@ class GameOverView(arcade.View):
         self.tempo = tempo
         self.pontuacao_maxima = pontuacao_maxima
 
+        self.fundo_game_over = arcade.load_texture("Jogo/fundo_gameover.png")
+
     def on_draw(self):
         self.clear()
+
+        arcade.draw_texture_rect(self.fundo_game_over, arcade.XYWH(400, 300, 800, 600))
+
         arcade.draw_text("FIM DE JOGO", 400, 480, arcade.color.YELLOW, 30, anchor_x="center")
 
         if self.pontuacao >= self.pontuacao_maxima:
@@ -209,6 +221,17 @@ class GameOverView(arcade.View):
 class JogoView(arcade.View):
     def __init__(self):
         super().__init__()
+
+        self.sprite_blocos = arcade.SpriteList()
+
+        for x in range(32, 800 + 32, 64):
+            chao = Bloco(x=x, y=30)
+            self.sprite_blocos.append(chao)
+
+        posicoes_plataforma = [(200, 250), (600, 250), (400, 450)]
+        for x, y in posicoes_plataforma:
+            plataforma = Bloco(x, y)
+            self.sprite_blocos.append(plataforma)
 
         self.velocidade = 3
 
@@ -240,12 +263,17 @@ class JogoView(arcade.View):
         self.sprite_inimigos = arcade.SpriteList()
         self.sprite_inimigos.append(self.inimigo)
 
+        self.engine_fisica = arcade.PhysicsEnginePlatformer(
+            player_sprite = self.jogador,
+            walls = self.sprite_blocos,
+            gravity_constant=0.5)
+        
         self.moeda = Moeda()
         self.moeda.center_x = 150
         self.moeda.center_y = 100
         self.sprite_moeda = arcade.SpriteList()
         self.sprite_moeda.append(self.moeda)
-
+        
         self.moeda_especial = MoedaEspecial()
         self.moeda_especial.center_x = 650
         self.moeda_especial.center_y = 500
@@ -254,10 +282,17 @@ class JogoView(arcade.View):
         self.sprite_moeda.append(self.moeda_especial)
 
         for i in range (25):
-            self.moeda_simples = Moeda()
-            self.moeda_simples.center_x = random.randint(50, 750)
-            self.moeda_simples.center_y = random.randint(50, 550)
-            self.sprite_moeda.append(self.moeda_simples)
+            moeda_simples = Moeda()
+
+            posicao_valida = False
+            while not posicao_valida:
+                    moeda_simples.center_x = random.randint(50, 750)
+                    moeda_simples.center_y = random.randint(100, 550)
+
+                    if not arcade.check_for_collision_with_list(moeda_simples, self.sprite_blocos):
+                        posicao_valida = True
+
+            self.sprite_moeda.append(moeda_simples)
 
         self.inimigo_especial = InimigoEspecial(self)
         self.inimigo_especial.center_x = 400
@@ -266,6 +301,7 @@ class JogoView(arcade.View):
 
         self.pontuacao_maxima = 25 + 1 + 5
 
+        
     def on_draw(self):
         self.clear()
 
@@ -274,6 +310,7 @@ class JogoView(arcade.View):
         self.sprite_jogador.draw()
         self.sprite_moeda.draw()
         self.sprite_inimigos.draw()
+        self.sprite_blocos.draw()
 
         arcade.draw_text(f"Tempo: {self.tempo:.2f}s", 10, 570, arcade.color.WHITE, 20)
 
@@ -283,6 +320,11 @@ class JogoView(arcade.View):
             arcade.draw_text(self.mensagem, 400, 500, arcade.color.RED, 20, anchor_x="center")
 
     def on_update(self, delta_time):
+
+        self.engine_fisica.update()
+
+        self.sprite_moeda.update(delta_time)
+        self.sprite_jogador.update(delta_time)
 
         if not self.jogo_finalizado:
             self.tempo += delta_time
@@ -318,10 +360,10 @@ class JogoView(arcade.View):
             self.jogador.change_x = -self.velocidade
         elif key == arcade.key.D:
             self.jogador.change_x = self.velocidade
-        elif key == arcade.key.W:
-            self.jogador.change_y = self.velocidade
-        elif key == arcade.key.S:
-            self.jogador.change_y = -self.velocidade
+
+        if key == arcade.key.W or key == arcade.key.SPACE:
+            if self.engine_fisica.can_jump():
+                self.jogador.change_y = 16
 
         if key == arcade.key.R:
             self.setup()   
