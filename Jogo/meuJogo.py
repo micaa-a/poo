@@ -3,19 +3,49 @@ import random
 
 class Bloco(arcade.Sprite):
     def __init__(self, x: float, y: float):
-        super().__init__("Jogo/bloco.png", scale = 0.2)
+        super().__init__("Jogo/bloco.png", scale = 0.12)
         self.center_x = x
         self.center_y = y
 
 class Player(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/player_direita.png", scale=0.02)
+        """ super().__init__("Jogo/player_direita.png", scale=0.02)
 
         self.textura_direita = arcade.load_texture("Jogo/player_direita.png")
-        self.textura_esquerda = arcade.load_texture("Jogo/player_esquerda.png")
+        self.textura_esquerda = arcade.load_texture("Jogo/player_esquerda.png")"""
 
-    def update(self, delta_time):
-        self.center_x += self.change_x
+        sheet_direita = arcade.load_spritesheet("Jogo/spritesheet.png")
+
+        quadros_direita = sheet_direita.get_texture_grid(
+            size = (139, 164),
+            columns = 6,
+            count = 6
+        )
+
+        quadros_esquerda = []
+
+        for frame in quadros_direita:
+            quadros_esquerda.append(frame.flip_left_right())
+
+        super().__init__(quadros_direita[0], scale = 0.5)
+
+        self.textura_parado_d = quadros_direita[0]
+        self.textura_parado_e = quadros_direita[0]
+
+        self.passos_direita = [quadros_direita[1], quadros_direita[2], quadros_direita[3], quadros_direita[4]]
+        self.passos_esquerda = [quadros_esquerda[1], quadros_esquerda[2], quadros_esquerda[3], quadros_esquerda[4]]
+
+        self.textura_pulo_d = quadros_direita[5]
+        self.textura_pulo_e = quadros_esquerda[5]
+        self.textura_queda_d = quadros_direita[5]
+        self.textura_queda_e = quadros_esquerda[5]
+
+        self.quadro_atual: int = 0
+        self.tempo_animacao: float = 0.0
+        self.virado_para: str = "DIREITA" 
+
+    def update(self, delta_time: float = 1/60):
+        """self.center_x += self.change_x
         
         if self.change_x > 0:
             self.texture = self.textura_direita
@@ -27,11 +57,37 @@ class Player(arcade.Sprite):
             self.right = 800
         if self.left < 0:
             self.change_x = 0
-            self.left = 0
+            self.left = 0"""
+
+        if self.change_x > 0:
+            self.virado_para = "DIREITA"
+        elif self.change_x < 0:
+            self.virado_para = "ESQUERDA"
+
+        if self.change_y > 0:
+            self.texture = self.textura_pulo_d if self.virado_para == "DIREITA" else self.textura_pulo_e
+            return
+        elif self.change_y < 0:
+            self.texture = self.textura_queda_d if self.virado_para == "DIREITA" else self.textura_queda_e
+            return
+
+        if self.change_x == 0:
+            self.texture = self.textura_parado_d if self.virado_para == "DIREITA" else self.textura_parado_e
+            return
+        
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.1:
+            self.tempo_animacao = 0.0 
+            self.quadro_atual = (self.quadro_atual + 1) % len(self.passos_direita)
+
+            if self.virado_para == "DIREITA":
+                self.texture = self.passos_direita[self.quadro_atual]
+            else:
+                self.texture = self.passos_esquerda[self.quadro_atual]
 
 class Inimigo(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/inimigo.png", scale = 1)
+        super().__init__("Jogo/alien_asa.png", scale = 0.2)
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
@@ -47,22 +103,49 @@ class Inimigo(arcade.Sprite):
 
 class InimigoEspecial(arcade.Sprite):
     def __init__(self, jogo):
-        super().__init__("Jogo/inimigo.png", scale=0.9)
+
+        sheet_inimigo = arcade.load_spritesheet("Jogo/spritesheet_inimigo_especial.png")
+        quadros_inimigo = list(sheet_inimigo.get_texture_grid(
+            size = (234, 365), 
+            columns = 4,
+            count = 4
+        ))
+
+        quadros_inimigo_esquerda = []
+        for frame in quadros_inimigo:
+            quadros_inimigo_esquerda.append(frame.flip_left_right())
+
+        super().__init__(quadros_inimigo[0], scale=0.3)
         self.jogo = jogo
 
+        self.passos_direita = quadros_inimigo
+        self.passos_esquerda = quadros_inimigo_esquerda
+        
+        self.quadro_atual = 0
+        self.tempo_animacao = 0.0
+        self.virado_para = "DIREITA"
+        
     def update(self, delta_time):
         jogador = self.jogo.jogador
         velocidade_inimigo = 1.5
 
         if jogador.center_x > self.center_x:
             self.change_x = velocidade_inimigo
+            self.virado_para = "DIREITA"
         else:
             self.change_x = -velocidade_inimigo
+            self.virado_para = "ESQUERDA"
 
-        # if jogador.center_y > self.center_y:
-        #     self.center_y += velocidade_inimigo
-        # else:
-        #     self.center_y -= velocidade_inimigo
+        if self.change_x != 0:
+            self.tempo_animacao += delta_time
+            if self.tempo_animacao >= 0.15:
+                self.tempo_animacao = 0.0
+                self.quadro_atual = (self.quadro_atual + 1) % len(self.passos_direita)
+                
+                if self.virado_para == "DIREITA":
+                    self.texture = self.passos_direita[self.quadro_atual]
+                else:
+                    self.texture = self.passos_esquerda[self.quadro_atual]
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
