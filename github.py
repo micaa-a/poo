@@ -11,8 +11,8 @@ os.system(comando1)
 
 mensagem = input("Mensagem do commit: ")
 while(len(mensagem) < 4 ):
-    print("😢 Mensagem muito pequena, detalhe mais")
-    mensagem = input("D0gite novamente 😘")
+    print("Mensagem muito pequena, detalhe mais")
+    mensagem = input("Digite novamente")
 
 print("Registrando alterações...✅")
 comando2 = f'git commit -m "{mensagem}"'
