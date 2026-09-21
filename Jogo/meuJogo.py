@@ -1,5 +1,66 @@
 import arcade
-import random 
+import random
+from pontuacao import Pontuacao
+from pontuacao import inicializar_banco
+
+class TelaNomeView(arcade.View):
+    def __init__(self, pontos_finais, tempo_final):
+        super().__init__()
+        self.pontos = pontos_finais
+        self.tempo = tempo_final
+        self.nome_jogador = ""
+
+    def on_show_view(self):
+        arcade.set_background_color((47, 16, 48))
+
+    def on_draw(self):
+        self.clear()
+        arcade.draw_text("SALVAR PONTUAÇÃO", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
+        arcade.draw_text(f"Pontos: {self.pontos} | Tempo: {self.tempo:.1f}s", 400, 390, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text("Digite seu nome e pressione ENTER:", 400, 300, arcade.color.WHITE, 16, anchor_x="center")
+        arcade.draw_text(self.nome_jogador + "_", 400, 250, arcade.color.WHITE, font_size=24, anchor_x="center")
+
+    def on_text(self, text):
+        if len(self.nome_jogador) < 15:
+            self.nome_jogador += text
+
+    def on_key_press(self, symbol, modifiers):
+        if symbol == arcade.key.BACKSPACE:
+            self.nome_jogador = self.nome_jogador[:-1]
+        elif symbol == arcade.key.ENTER and len(self.nome_jogador.strip()) > 0:
+            Pontuacao.create(
+                nome_jogador=self.nome_jogador,
+                pontos=self.pontos,
+                tempo_partida=self.tempo
+            )
+            self.window.show_view(TelaRankingView())
+
+class TelaRankingView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.melhores = (Pontuacao
+                         .select()
+                         .order_by(Pontuacao.pontos.desc())
+                         .limit(10))
+        
+    def on_show_view(self):
+        arcade.set_background_color((47, 16, 48))
+
+    def on_draw(self):
+        self.clear()
+        arcade.draw_text("🏆 RANKING - TOP 10", 400, 520, arcade.color.GOLD, 28, anchor_x="center")
+        
+        y_inicial = 450
+        for i, p in enumerate(self.melhores, 1):
+            texto = f"{i}º - {p.nome_jogador} : {p.pontos} pts ({p.tempo_partida:.1f}s)"
+            arcade.draw_text(texto, 400, y_inicial, arcade.color.WHITE, 16, anchor_x="center")
+            y_inicial -= 35
+
+        arcade.draw_text("Pressione M para voltar ao Menu", 400, 60, arcade.color.GRAY, 14, anchor_x="center")
+
+    def on_key_press(self, key, modifiers):
+        if key == arcade.key.M:
+            self.window.show_view(MenuView())
 
 class Bloco(arcade.Sprite):
     def __init__(self, x: float, y: float):
@@ -289,7 +350,8 @@ class GameOverView(arcade.View):
 
         arcade.draw_text("Pressione M para voltar ao Menu", 400, 180, arcade.color.GRAY, 16, anchor_x="center")
         arcade.draw_text("Pressione R para Jogar Novamente", 400, 140, arcade.color.GREEN, 16, anchor_x="center")
-        arcade.draw_text("Pressione ESC para Sair", 400, 100, arcade.color.RED, 16, anchor_x="center")
+        arcade.draw_text("Pressione K para Salvar e ver o Ranking", 400, 100, arcade.color.CYAN, 16, anchor_x="center")
+        arcade.draw_text("Pressione ESC para Sair", 400, 60, arcade.color.RED, 16, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.ESCAPE:
@@ -300,6 +362,9 @@ class GameOverView(arcade.View):
 
         if key == arcade.key.M:
             self.window.show_view(MenuView())
+
+        elif key == arcade.key.K:
+            self.window.show_view(TelaNomeView(self.pontuacao, self.tempo))
 
 class JogoView(arcade.View):
     def __init__(self):
@@ -463,6 +528,8 @@ class JogoView(arcade.View):
             self.jogador.change_y = 0
 
 def main():
+    inicializar_banco()
+
     tela = arcade.Window(800, 600, "Cosmic Run")
 
     menu = MenuView()
