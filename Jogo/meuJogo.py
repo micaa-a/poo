@@ -3,6 +3,38 @@ import random
 from pontuacao import Pontuacao
 from pontuacao import inicializar_banco
 
+ALTURA = 600
+LARGURA = 800
+
+TEMPO_INVENCIVEL = 1.5
+TEMPO_FLASH = 0.3
+TEMPO_TREMOR = 0.35
+INTENSIDADE_TREMOR = 8
+
+class Explosao(arcade.Sprite):
+    def __init__(self, x: float, y: float, quadros: list, scale: float = 1.0):
+        super().__init__(quadros[0], scale=scale)
+
+        self.center_x = x
+        self.center_y = y
+
+        self.quadros = quadros
+        self.quadro_atual = 0
+        self.tempo_animacao = 0.0
+
+    def update(self, delta_time: float = 1/60):
+        self.tempo_animacao += delta_time
+
+        if self.tempo_animacao >= 0.09:
+            self.tempo_animacao = 0.0
+            self.quadro_atual += 1
+
+            if self.quadro_atual >= len(self.quadros):
+                self.remove_from_sprite_lists()
+                return
+
+            self.texture = self.quadros[self.quadro_atual]
+
 class TelaNomeView(arcade.View):
     def __init__(self, pontos_finais, tempo_final):
         super().__init__()
@@ -373,6 +405,19 @@ class JogoView(arcade.View):
     def __init__(self):
         super().__init__()
 
+        self.camera = arcade.Camera2D()
+
+        self.tempo_invencivel = 0.0
+        self.tempo_flash = 0.0
+        self.tempo_tremor = 0.0
+
+        sheet_explosao = arcade.load_spritesheet("Jogo/spritesheet_explosao.png")
+        self.quadros_explosao = sheet_explosao.get_texture_grid(
+            size=(184, 177),
+            columns=4,     
+            count=4      
+        )
+
         self.sprite_blocos = arcade.SpriteList()
 
         for x in range(32, 800 + 32, 64):
@@ -390,6 +435,9 @@ class JogoView(arcade.View):
 
         self.setup()
 
+        self.tecla_esquerda_pressionada = False
+        self.tecla_direita_pressionada = False
+
     def setup(self):
 
         self.mensagem = ""
@@ -398,6 +446,8 @@ class JogoView(arcade.View):
         self.tempo = 0
         self.jogo_finalizado = False
         self.pontuacao = 0 
+
+        self.sprite_efeitos = arcade.SpriteList()
 
         self.jogador = Player()
         self.jogador.left = 0
@@ -460,15 +510,42 @@ class JogoView(arcade.View):
     def on_draw(self):
         self.clear()
 
-        arcade.draw_texture_rect(self.fundo, arcade.XYWH(400, 300, 800, 600))
+        self.camera.use()
+
+        arcade.draw_texture_rect(
+            texture=self.fundo,
+            rect=arcade.XYWH(
+                x=LARGURA / 2,
+                y=ALTURA / 2,
+                width=LARGURA + 2 * INTENSIDADE_TREMOR,
+                height=ALTURA + 2 * INTENSIDADE_TREMOR
+            )
+        )
 
         self.sprite_jogador.draw()
         self.sprite_moeda.draw()
         self.sprite_inimigos.draw()
         self.sprite_blocos.draw()
+        self.sprite_efeitos.draw()
+
+        self.window.default_camera.use()
+
+        if self.tempo_flash > 0:
+            alpha = int(120 * self.tempo_flash / TEMPO_FLASH)
+            arcade.draw_rect_filled(
+                arcade.XYWH(LARGURA / 2, ALTURA / 2, LARGURA, ALTURA),
+                (255, 0, 0, alpha)
+            )
+
+        if self.tempo_flash > 0:
+            alpha = int(120 * self.tempo_flash / TEMPO_FLASH)
+
+            arcade.draw_rect_filled(
+                arcade.XYWH(LARGURA / 2, ALTURA / 2, LARGURA, ALTURA),
+                (255, 0, 0, alpha)
+            )
 
         arcade.draw_text(f"Tempo: {self.tempo:.2f}s", 10, 570, arcade.color.WHITE, 20)
-
         arcade.draw_text(f"Pontuação: {self.pontuacao}", 10, 540, arcade.color.WHITE, 20)
 
         if self.tempo_mensagem > 0:
@@ -476,8 +553,81 @@ class JogoView(arcade.View):
 
     def on_update(self, delta_time):
 
+        if self.tempo_invencivel > 0:
+            pass
+        else:
+            if self.tecla_esquerda_pressionada and not self.tecla_direita_pressionada:
+                self.jogador.change_x = -self.velocidade
+            elif self.tecla_direita_pressionada and not self.tecla_esquerda_pressionada:
+                self.jogador.change_x = self.velocidade
+            else:
+                self.jogador.change_x = 0
+
+        self.tempo_invencivel = max(0.0, self.tempo_invencivel - delta_time)
+        self.tempo_flash = max(0.0, self.tempo_flash - delta_time)
+        self.tempo_tremor = max(0.0, self.tempo_tremor - delta_time)
+
+        if self.tempo_tremor > 0:
+            forca = INTENSIDADE_TREMOR * self.tempo_tremor / TEMPO_TREMOR
+            self.camera.position = (
+                LARGURA / 2 + random.uniform(-forca, forca),
+                ALTURA / 2 + random.uniform(-forca, forca),
+            )
+        else:
+            self.camera.position = (LARGURA / 2, ALTURA / 2)
+
+        if self.tempo_invencivel == 0:
+            inimigos_colididos = arcade.check_for_collision_with_list(
+                self.jogador, self.sprite_inimigos
+            )
+            if inimigos_colididos:
+                self.tempo_invencivel = TEMPO_INVENCIVEL
+                self.tempo_flash = TEMPO_FLASH
+                self.tempo_tremor = TEMPO_TREMOR
+
+                primeiro_inimigo = inimigos_colididos[0]
+
+                self.jogador.change_y = 4
+
+                forca_empurrao = 3.5
+                if self.jogador.center_x >= primeiro_inimigo.center_x:
+                    self.jogador.change_x = forca_empurrao
+                else:
+                    self.jogador.change_x = -forca_empurrao
+
+                # Efeitos visuais e explosão
+                x = (self.jogador.center_x + primeiro_inimigo.center_x) / 2
+                y = (self.jogador.center_y + primeiro_inimigo.center_y) / 2
+
+                explosao = Explosao(x, y, self.quadros_explosao, scale=0.8)
+                self.sprite_efeitos.append(explosao)
+
+                for inimigo in inimigos_colididos:
+                    inimigo.aplicar_efeito(self)
+
+                self.mensagem = "Você foi atingido!"
+                self.tempo_mensagem = 1.5
+
+        if self.tempo_invencivel > 0:
+            if int(self.tempo_invencivel * 10) % 2 == 0:
+                self.jogador.alpha = 80
+            else:
+                self.jogador.alpha = 255
+        else:
+            self.jogador.alpha = 255
+
         self.engine_fisica.update()
         self.engine_fisica_inimigo_especial.update()
+
+        largura_meio_sprite = self.jogador.width / 2
+
+        if self.jogador.left < 0:
+            self.jogador.left = 0
+            self.jogador.change_x = 0
+        
+        if self.jogador.right > LARGURA:
+            self.jogador.right = LARGURA
+            self.jogador.change_x = 0
 
         if not self.jogo_finalizado:
             self.tempo += delta_time
@@ -485,6 +635,7 @@ class JogoView(arcade.View):
             self.sprite_jogador.update(delta_time)
             self.sprite_moeda.update(delta_time)
             self.sprite_inimigos.update(delta_time)
+            self.sprite_efeitos.update(delta_time)
 
             moedas_colididas = arcade.check_for_collision_with_list(self.jogador, self.sprite_moeda)
             for moeda in moedas_colididas:
@@ -494,13 +645,6 @@ class JogoView(arcade.View):
                 else:
                     self.pontuacao += 1
 
-            inimigos_colididos = arcade.check_for_collision_with_list(self.jogador, self.sprite_inimigos)
-            for inimigo in inimigos_colididos:
-                    inimigo.aplicar_efeito(self)
-
-                    self.mensagem = "Você foi atingido!"
-                    self.tempo_mensagem = 1.5
-
             if len(self.sprite_moeda) == 0:
                 game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
                 self.window.show_view(game_over)
@@ -509,26 +653,26 @@ class JogoView(arcade.View):
                 self.tempo_mensagem -= delta_time
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.A: 
-            self.jogador.change_x = -self.velocidade
+        if key == arcade.key.A:
+            self.tecla_esquerda_pressionada = True
         elif key == arcade.key.D:
-            self.jogador.change_x = self.velocidade
+            self.tecla_direita_pressionada = True
 
         if key == arcade.key.W or key == arcade.key.SPACE:
             if self.engine_fisica.can_jump():
                 self.jogador.change_y = 16
 
         if key == arcade.key.R:
-            self.setup()   
+            self.setup()
 
         if key == arcade.key.ESCAPE:
             self.window.show_view(MenuView())
 
     def on_key_release(self, key, modifiers):
-        if key == arcade.key.A or key == arcade.key.D:
-            self.jogador.change_x = 0
-        elif key == arcade.key.W or key == arcade.key.S:
-            self.jogador.change_y = 0
+        if key == arcade.key.A:
+            self.tecla_esquerda_pressionada = False
+        elif key == arcade.key.D:
+            self.tecla_direita_pressionada = False
 
 def main():
     inicializar_banco()
