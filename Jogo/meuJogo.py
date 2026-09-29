@@ -33,16 +33,16 @@ class TelaNomeView(arcade.View):
                 pontos=self.pontos,
                 tempo_partida=self.tempo
             )
-            self.window.show_view(TelaRankingView())
+            self.window.show_view(TelaRanking())
 
-class TelaRankingView(arcade.View):
+class TelaRanking(arcade.View):
     def __init__(self):
         super().__init__()
-        self.melhores = (Pontuacao
-                         .select()
-                         .order_by(Pontuacao.pontos.desc())
-                         .limit(10))
-        
+        self.melhores = list(Pontuacao
+                            .select()
+                            .order_by(Pontuacao.pontos.desc())
+                            .limit(10))
+
     def on_show_view(self):
         arcade.set_background_color((47, 16, 48))
 
@@ -50,11 +50,14 @@ class TelaRankingView(arcade.View):
         self.clear()
         arcade.draw_text("🏆 RANKING - TOP 10", 400, 520, arcade.color.GOLD, 28, anchor_x="center")
         
-        y_inicial = 450
-        for i, p in enumerate(self.melhores, 1):
-            texto = f"{i}º - {p.nome_jogador} : {p.pontos} pts ({p.tempo_partida:.1f}s)"
-            arcade.draw_text(texto, 400, y_inicial, arcade.color.WHITE, 16, anchor_x="center")
-            y_inicial -= 35
+        if not self.melhores:
+            arcade.draw_text("Nenhuma pontuação registrada ainda!", 400, 300, arcade.color.WHITE, 18, anchor_x="center")
+        else:
+            y_inicial = 450
+            for i, p in enumerate(self.melhores, 1):
+                texto = f"{i}º - {p.nome_jogador} : {p.pontos} pts ({p.tempo_partida:.1f}s)"
+                arcade.draw_text(texto, 400, y_inicial, arcade.color.WHITE, 16, anchor_x="center")
+                y_inicial -= 35
 
         arcade.draw_text("Pressione M para voltar ao Menu", 400, 60, arcade.color.GRAY, 14, anchor_x="center")
 
@@ -91,7 +94,7 @@ class Player(arcade.Sprite):
         super().__init__(quadros_direita[0], scale = 0.5)
 
         self.textura_parado_d = quadros_direita[0]
-        self.textura_parado_e = quadros_direita[0]
+        self.textura_parado_e = quadros_esquerda[0]
 
         self.passos_direita = [quadros_direita[1], quadros_direita[2], quadros_direita[3], quadros_direita[4]]
         self.passos_esquerda = [quadros_esquerda[1], quadros_esquerda[2], quadros_esquerda[3], quadros_esquerda[4]]
@@ -305,21 +308,21 @@ class MenuView(arcade.View):
         arcade.draw_texture_rect(self.fundo_menu, arcade.XYWH(400, 300, 800, 600))
 
         arcade.draw_text("Cosmic Run", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
-        arcade.draw_text("[J] Jogar", 400, 320, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[I] Instruções", 400, 280, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[S] Sobre", 400, 240, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text("[J] Jogar", 400, 400, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text("[R] Ver Ranking", 400, 350, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text("[I] Instruções", 400, 300, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text("[S] Sobre", 400, 250, arcade.color.WHITE, 20, anchor_x="center")
         arcade.draw_text("[ESC] Sair", 400, 200, arcade.color.WHITE, 20, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.J:
             self.window.show_view(JogoView())
-
+        elif key == arcade.key.R:
+            self.window.show_view(TelaRanking())
         elif key == arcade.key.I:
             self.window.show_view(InstrucoesView())
-
         elif key == arcade.key.S:
             self.window.show_view(SobreView())
-
         elif key == arcade.key.ESCAPE:
             arcade.close_window()
 
