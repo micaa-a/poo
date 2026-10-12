@@ -446,6 +446,7 @@ class JogoView(arcade.View):
         self.tempo = 0
         self.jogo_finalizado = False
         self.pontuacao = 0 
+        self.vidas = 3
 
         self.sprite_efeitos = arcade.SpriteList()
 
@@ -546,7 +547,8 @@ class JogoView(arcade.View):
             )
 
         arcade.draw_text(f"Tempo: {self.tempo:.2f}s", 10, 570, arcade.color.WHITE, 20)
-        arcade.draw_text(f"Pontuação: {self.pontuacao}", 10, 540, arcade.color.WHITE, 20)
+        arcade.draw_text(f"Pontuação: {self.pontuacao}", 10, 540, arcade.color.YELLOW, 20)
+        arcade.draw_text(f"Vidas: {self.vidas}", 10, 510, arcade.color.RED, 20)
 
         if self.tempo_mensagem > 0:
             arcade.draw_text(self.mensagem, 400, 500, arcade.color.RED, 20, anchor_x="center")
@@ -595,7 +597,6 @@ class JogoView(arcade.View):
                 else:
                     self.jogador.change_x = -forca_empurrao
 
-                # Efeitos visuais e explosão
                 x = (self.jogador.center_x + primeiro_inimigo.center_x) / 2
                 y = (self.jogador.center_y + primeiro_inimigo.center_y) / 2
 
@@ -605,8 +606,15 @@ class JogoView(arcade.View):
                 for inimigo in inimigos_colididos:
                     inimigo.aplicar_efeito(self)
 
+                self.vidas -= 1
+
                 self.mensagem = "Você foi atingido!"
                 self.tempo_mensagem = 1.5
+
+                if self.vidas <= 0:
+                    game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
+                    self.window.show_view(game_over)
+                    return
 
         if self.tempo_invencivel > 0:
             if int(self.tempo_invencivel * 10) % 2 == 0:
