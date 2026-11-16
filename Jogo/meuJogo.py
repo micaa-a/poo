@@ -547,8 +547,18 @@ class MenuView(arcade.View):
             ("[S] Sobre", lambda: self.window.show_view(SobreView())),
             ("[ESC] Sair", lambda: arcade.close_window())
         ]
+
         self.selecionado = 0
         self.tempo_clique = 0.0
+
+        self.estrelas_menu = []
+        for _ in range(35):
+            x = random.randint(0, 800)
+            y = random.randint(0, 600)
+            tamanho = random.randint(1, 3)
+            velocidade = random.uniform(0.3, 1.0)
+            brilho = random.randint(100, 255)
+            self.estrelas_menu.append([x, y, tamanho, velocidade, brilho])
 
     def on_show_view(self):
         pass
@@ -557,14 +567,21 @@ class MenuView(arcade.View):
         self.clear()
         arcade.draw_texture_rect(self.fundo_menu, arcade.XYWH(400, 300, 800, 600))
 
+        for x, y, tamanho, velocidade, brilho in self.estrelas_menu:
+            arcade.draw_circle_filled(x, y, tamanho, (255, 255, 255, brilho))
+
         altura_logo = 250
     
         proporcao = self.logo_titulo.width / self.logo_titulo.height
         largura_logo = altura_logo * proporcao
 
+        import math
+        tempo_atual = arcade.get_window().time
+        deslocamento_y = math.sin(tempo_atual * 2) * 6  
+
         arcade.draw_texture_rect(
             self.logo_titulo, 
-            arcade.XYWH(400, 480, largura_logo, altura_logo)
+            arcade.XYWH(400, 480 + deslocamento_y, largura_logo, altura_logo)
         )
 
         y_inicial = 350
@@ -572,12 +589,27 @@ class MenuView(arcade.View):
             is_selecionado = (i == self.selecionado)
             
             cor_fundo = (40, 25, 70, 240) if is_selecionado else (20, 10, 35, 180)
-            cor_borda = arcade.color.CYAN if is_selecionado else arcade.color.PURPLE
+            
             largura_box = 280 if is_selecionado else 260
             altura_box = 45 if is_selecionado else 40
 
+            # 1. Desenha o fundo da caixa
             arcade.draw_rect_filled(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_fundo)
-            arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_borda, 2 if is_selecionado else 1)
+
+            # 2. Se estiver selecionado, cria o efeito de Brilho Neon Real (Glow)
+            if is_selecionado:
+                # Oscilação bem forte entre 80 e 255 para garantir que fique bem visível
+                brilho = int(160 + 95 * math.sin(tempo_atual * 8))
+                
+                # Camadas externas de sombra/glow (criam o efeito de luz espalhada)
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 6, altura_box + 6), (0, 255, 255, brilho // 3), 4)
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 3, altura_box + 3), (0, 255, 255, brilho // 2), 3)
+                
+                # Linha principal do neon (viva e brilhante)
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), (100, 255, 255, brilho), 2)
+            else:
+                # Borda padrão para as opções não selecionadas
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), arcade.color.PURPLE, 1)
             
             cor_texto = arcade.color.YELLOW if is_selecionado else arcade.color.WHITE
             arcade.draw_text(texto, 400, y_inicial - 8, cor_texto, 18 if is_selecionado else 16, anchor_x="center")
@@ -585,6 +617,13 @@ class MenuView(arcade.View):
             y_inicial -= 55
 
         arcade.draw_text("Use SETAS para navegar e ENTER para selecionar", 400, 40, arcade.color.GRAY, 13, anchor_x="center")
+
+    def on_update(self, delta_time):
+        for estrela in self.estrelas_menu:
+            estrela[1] -= estrela[3]
+            if estrela[1] < 0:
+                estrela[1] = 600
+                estrela[0] = random.randint(0, 800)
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.UP or key == arcade.key.W:
