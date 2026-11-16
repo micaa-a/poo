@@ -220,19 +220,41 @@ class Player(arcade.Sprite):
 
 class Inimigo(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/alien_asa.png", scale = 0.2)
+        sheet = arcade.load_spritesheet("Jogo/spritesheet_inimigo.png")
+        self.quadros_direita = list(sheet.get_texture_grid(
+            size=(334, 264), 
+            columns=6,
+            count=6
+        ))
+
+        self.quadros_esquerda = [frame.flip_left_right() for frame in self.quadros_direita]
+
+        super().__init__(self.quadros_direita[0], scale=0.4)
+
+        self.quadro_atual = 0
+        self.tempo_animacao = 0.0
 
     def aplicar_efeito(self, jogo):
         jogo.pontuacao -= 1
 
-    def update(self, delta_time):
-            self.center_x += self.change_x
-            self.center_y += self.change_y
-    
-            if self.right > 800 or self.left < 0:
-                self.change_x *= -1
-            if self.top > 600 or self.bottom < 0:
-                self.change_y *= -1
+    def update(self, delta_time: float = 1/60):
+        self.center_x += self.change_x
+        self.center_y += self.change_y
+
+        if self.right > 800 or self.left < 0:
+            self.change_x *= -1
+        if self.top > 600 or self.bottom < 0:
+            self.change_y *= -1
+
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.1:  # Velocidade do bater de asas (menor = mais rápido)
+            self.tempo_animacao = 0.0
+            self.quadro_atual = (self.quadro_atual + 1) % len(self.quadros_direita)
+
+            if self.change_x >= 0:
+                self.texture = self.quadros_direita[self.quadro_atual]
+            else:
+                self.texture = self.quadros_esquerda[self.quadro_atual]
 
 class InimigoEspecial(arcade.Sprite):
     def __init__(self, jogo):
@@ -622,9 +644,9 @@ class JogoView(arcade.View):
 
         sheet_explosao = arcade.load_spritesheet("Jogo/spritesheet_explosao.png")
         self.quadros_explosao = sheet_explosao.get_texture_grid(
-            size=(184, 177),
-            columns=4,     
-            count=4      
+            size=(94, 94),
+            columns=12,     
+            count=12      
         )
 
         self.sprite_blocos = arcade.SpriteList()
@@ -780,15 +802,12 @@ class JogoView(arcade.View):
         for bloco in self.sprite_blocos:
             bloco.update(delta_time)
     
-        if self.tempo_invencivel > 0:
-            pass
+        if self.tecla_esquerda_pressionada and not self.tecla_direita_pressionada:
+            self.jogador.change_x = -self.velocidade
+        elif self.tecla_direita_pressionada and not self.tecla_esquerda_pressionada:
+            self.jogador.change_x = self.velocidade
         else:
-            if self.tecla_esquerda_pressionada and not self.tecla_direita_pressionada:
-                self.jogador.change_x = -self.velocidade
-            elif self.tecla_direita_pressionada and not self.tecla_esquerda_pressionada:
-                self.jogador.change_x = self.velocidade
-            else:
-                self.jogador.change_x = 0
+            self.jogador.change_x = 0
 
         self.tempo_invencivel = max(0.0, self.tempo_invencivel - delta_time)
         self.tempo_flash = max(0.0, self.tempo_flash - delta_time)
@@ -813,14 +832,6 @@ class JogoView(arcade.View):
                 self.tempo_tremor = TEMPO_TREMOR
 
                 primeiro_inimigo = inimigos_colididos[0]
-
-                self.jogador.change_y = 4
-
-                forca_empurrao = 3.5
-                if self.jogador.center_x >= primeiro_inimigo.center_x:
-                    self.jogador.change_x = forca_empurrao
-                else:
-                    self.jogador.change_x = -forca_empurrao
 
                 x = (self.jogador.center_x + primeiro_inimigo.center_x) / 2
                 y = (self.jogador.center_y + primeiro_inimigo.center_y) / 2
