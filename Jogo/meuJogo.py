@@ -7,7 +7,7 @@ from pontuacao import inicializar_banco
 ALTURA = 600
 LARGURA = 800
 
-NUM_MOEDAS = 26
+NUM_MOEDAS = 25
 NUM_INIMIGOS = 2
 
 POSICAO_INICIAL_JOGADOR = (40, 100)
