@@ -537,6 +537,12 @@ class MenuView(arcade.View):
     def __init__(self):
         super().__init__()
 
+        self.estrelas_cadentes = []
+
+        self.alpha_transicao = 255  
+        self.saindo = False
+        self.acao_pendente = None
+
         self.fundo_menu = arcade.load_texture("Jogo/fundo_menu.png")
         self.logo_titulo = arcade.load_texture("Jogo/logo_titulo.png")
 
@@ -570,6 +576,14 @@ class MenuView(arcade.View):
         for x, y, tamanho, velocidade, brilho in self.estrelas_menu:
             arcade.draw_circle_filled(x, y, tamanho, (255, 255, 255, brilho))
 
+        for x, y, tamanho, velocidade, brilho in self.estrelas_menu:
+            arcade.draw_circle_filled(x, y, tamanho, (255, 255, 255, brilho))
+
+        for x, y, velocidade, alpha in self.estrelas_cadentes:
+            a = int(max(0, min(255, alpha)))
+            arcade.draw_line(x, y, x + 45, y + 27, (150, 255, 255, a // 2), 2)
+            arcade.draw_circle_filled(x, y, 2.5, (255, 255, 255, a))
+
         altura_logo = 250
     
         proporcao = self.logo_titulo.width / self.logo_titulo.height
@@ -593,22 +607,34 @@ class MenuView(arcade.View):
             largura_box = 280 if is_selecionado else 260
             altura_box = 45 if is_selecionado else 40
 
-            # 1. Desenha o fundo da caixa
             arcade.draw_rect_filled(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_fundo)
 
-            # 2. Se estiver selecionado, cria o efeito de Brilho Neon Real (Glow)
             if is_selecionado:
-                # Oscilação bem forte entre 80 e 255 para garantir que fique bem visível
-                brilho = int(160 + 95 * math.sin(tempo_atual * 8))
-                
-                # Camadas externas de sombra/glow (criam o efeito de luz espalhada)
-                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 6, altura_box + 6), (0, 255, 255, brilho // 3), 4)
-                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 3, altura_box + 3), (0, 255, 255, brilho // 2), 3)
-                
-                # Linha principal do neon (viva e brilhante)
-                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), (100, 255, 255, brilho), 2)
+                brilho_neon = int(160 + 95 * math.sin(tempo_atual * 8))
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 6, altura_box + 6), (0, 255, 255, brilho_neon // 3), 4)
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box + 3, altura_box + 3), (0, 255, 255, brilho_neon // 2), 3)
+                arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), (100, 255, 255, brilho_neon), 2)
+
+                afastamento = math.sin(tempo_atual * 8) * 4
+                cor_indicador = (0, 255, 255, brilho_neon)
+
+                arcade.draw_text(
+                    "▶", 
+                    400 - (largura_box / 2) + 22 - afastamento, 
+                    y_inicial - 7, 
+                    cor_indicador, 
+                    14, 
+                    anchor_x="center"
+                )
+                arcade.draw_text(
+                    "◀", 
+                    400 + (largura_box / 2) - 22 + afastamento, 
+                    y_inicial - 7, 
+                    cor_indicador, 
+                    14, 
+                    anchor_x="center"
+                )
             else:
-                # Borda padrão para as opções não selecionadas
                 arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), arcade.color.PURPLE, 1)
             
             cor_texto = arcade.color.YELLOW if is_selecionado else arcade.color.WHITE
@@ -618,6 +644,12 @@ class MenuView(arcade.View):
 
         arcade.draw_text("Use SETAS para navegar e ENTER para selecionar", 400, 40, arcade.color.GRAY, 13, anchor_x="center")
 
+        if self.alpha_transicao > 0:
+            arcade.draw_rect_filled(
+                arcade.XYWH(400, 300, 800, 600), 
+                (0, 0, 0, int(self.alpha_transicao))
+            )
+
     def on_update(self, delta_time):
         for estrela in self.estrelas_menu:
             estrela[1] -= estrela[3]
@@ -625,24 +657,56 @@ class MenuView(arcade.View):
                 estrela[1] = 600
                 estrela[0] = random.randint(0, 800)
 
+        velocidade_fade = 500 * delta_time
+
+        if not self.saindo:
+            if self.alpha_transicao > 0:
+                self.alpha_transicao = max(0, self.alpha_transicao - velocidade_fade)
+        else:
+            self.alpha_transicao = min(255, self.alpha_transicao + velocidade_fade)
+            if self.alpha_transicao >= 255:
+                if callable(self.acao_pendente):
+                    self.acao_pendente()
+
+        if random.random() < 0.008 and len(self.estrelas_cadentes) < 2:
+            x_inicio = random.randint(200, 850)
+            y_inicio = random.randint(350, 620)
+            velocidade = random.uniform(600, 900)  # Bem rápida!
+            # Formato: [x, y, velocidade, vida_alpha]
+            self.estrelas_cadentes.append([x_inicio, y_inicio, velocidade, 255.0])
+
+        # Move cada estrela cadente na diagonal (baixo-esquerda) e vai apagando seu rastro
+        for cadente in self.estrelas_cadentes[:]:
+            cadente[0] -= cadente[2] * delta_time        # Move para a esquerda
+            cadente[1] -= (cadente[2] * 0.6) * delta_time # Move para baixo (inclinação diagonal)
+            cadente[3] -= 280 * delta_time               # Vai desaparecendo aos poucos
+
+            # Remove da lista quando ela sumir ou sair muito da tela
+            if cadente[3] <= 0 or cadente[0] < -100 or cadente[1] < -100:
+                self.estrelas_cadentes.remove(cadente)
+
+    def iniciar_transicao(self, acao):
+        self.acao_pendente = acao
+        self.saindo = True
+
     def on_key_press(self, key, modifiers):
+        if self.saindo:
+            return
+
         if key == arcade.key.UP or key == arcade.key.W:
             self.selecionado = (self.selecionado - 1) % len(self.opcoes)
         elif key == arcade.key.DOWN or key == arcade.key.S:
             self.selecionado = (self.selecionado + 1) % len(self.opcoes)
         elif key == arcade.key.ENTER or key == arcade.key.SPACE:
-            # Executa a ação da opção selecionada
-            self.opcoes[self.selecionado][1]()
+            self.iniciar_transicao(self.opcoes[self.selecionado][1])
         elif key == arcade.key.J:
-            self.window.show_view(JogoView())
+            self.iniciar_transicao(lambda: self.window.show_view(JogoView()))
         elif key == arcade.key.R:
-            self.window.show_view(TelaRanking())
+            self.iniciar_transicao(lambda: self.window.show_view(TelaRanking()))
         elif key == arcade.key.I:
-            self.window.show_view(InstrucoesView())
-        elif key == arcade.key.S:
-            self.window.show_view(SobreView())
+            self.iniciar_transicao(lambda: self.window.show_view(InstrucoesView()))
         elif key == arcade.key.ESCAPE:
-            arcade.close_window()
+            self.iniciar_transicao(arcade.close_window)
 
 class GameOverView(arcade.View):
     def __init__(self, pontuacao, tempo, pontuacao_maxima):
