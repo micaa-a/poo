@@ -787,6 +787,11 @@ class JogoView(arcade.View):
     def __init__(self):
         super().__init__()
 
+        self.encerrando_jogo = False
+        self.alpha_fim = 0.0
+        self.cor_transicao = (0, 0, 0)
+        self.proxima_tela_fim = None
+
         self.camera = arcade.Camera2D()
 
         self.tempo_invencivel = 0.0
@@ -907,6 +912,13 @@ class JogoView(arcade.View):
 
         self.pontuacao_maxima = NUM_MOEDAS + 5
 
+    def iniciar_fim_de_jogo(self, proxima_view, vitoria=False):
+        if self.encerrando_jogo:
+            return
+        self.encerrando_jogo = True
+        self.proxima_tela_fim = proxima_view
+        self.cor_transicao = (255, 240, 180) if vitoria else (15, 0, 10)
+
     def posicionar_aleatoriamente(self, sprite, x_min, x_max, y_min, y_max):
         for _ in range(300):
             sprite.center_x = random.randint(x_min, x_max)
@@ -973,7 +985,35 @@ class JogoView(arcade.View):
         if self.tempo_mensagem > 0:
             arcade.draw_text(self.mensagem, 400, 500, arcade.color.RED, 20, anchor_x="center")
 
+        if self.encerrando_jogo and self.alpha_fim > 0:
+            alpha = int(min(255, self.alpha_fim))
+            r, g, b = self.cor_transicao
+            arcade.draw_rect_filled(
+                arcade.XYWH(400, 300, 800, 600),
+                (r, g, b, alpha)
+            )
+
     def on_update(self, delta_time):
+        if self.encerrando_jogo:
+            # Continua animando explosões, corações sumindo e tremor de câmera durante o fade
+            self.sprite_efeitos.update(delta_time)
+            for efeito_hud in list(self.sprite_efeitos_hud):
+                efeito_hud.update(delta_time)
+
+            if self.tempo_tremor > 0:
+                self.tempo_tremor = max(0.0, self.tempo_tremor - delta_time)
+                cam_x = max(LARGURA / 2, min(self.jogador.center_x, LARGURA_MAPA - LARGURA / 2))
+                cam_y = max(ALTURA / 2, min(self.jogador.center_y, ALTURA_MAPA - ALTURA / 2))
+                forca = INTENSIDADE_TREMOR * self.tempo_tremor / TEMPO_TREMOR
+                self.camera.position = (
+                    cam_x + random.uniform(-forca, forca),
+                    cam_y + random.uniform(-forca, forca),
+                )
+
+            self.alpha_fim += 320 * delta_time  # Velocidade do fade (~0.8 segundo)
+            if self.alpha_fim >= 255:
+                self.window.show_view(self.proxima_tela_fim)
+            return
 
         for bloco in self.sprite_blocos:
             bloco.update(delta_time)
@@ -982,9 +1022,6 @@ class JogoView(arcade.View):
         if self.tempo_fundo >= FUNDO_TEMPO_FRAME:
             self.tempo_fundo -= FUNDO_TEMPO_FRAME
             self.quadro_fundo = (self.quadro_fundo + 1) % FUNDO_FRAMES
-
-        for bloco in self.sprite_blocos:
-            bloco.update(delta_time)
     
         if self.tecla_esquerda_pressionada and not self.tecla_direita_pressionada:
             self.jogador.change_x = -self.velocidade
@@ -1039,7 +1076,7 @@ class JogoView(arcade.View):
 
                 if self.vidas <= 0:
                     game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
-                    self.window.show_view(game_over)
+                    self.iniciar_fim_de_jogo(game_over, vitoria=False)
                     return
 
         if self.tempo_invencivel > 0:
@@ -1088,7 +1125,7 @@ class JogoView(arcade.View):
 
             if len(self.sprite_moeda) == 0:
                 game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
-                self.window.show_view(game_over)
+                self.iniciar_fim_de_jogo(game_over, vitoria=True)
                 return
 
             if self.tempo_mensagem > 0:
