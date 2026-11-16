@@ -11,7 +11,7 @@ TEMPO_FLASH = 0.3
 TEMPO_TREMOR = 0.35
 INTENSIDADE_TREMOR = 8
 
-class Explosao(arcade.Sprite):
+class Explosao_inimigo(arcade.Sprite):
     def __init__(self, x: float, y: float, quadros: list, scale: float = 1.0):
         super().__init__(quadros[0], scale=scale)
 
@@ -43,14 +43,26 @@ class TelaNomeView(arcade.View):
         self.nome_jogador = ""
 
     def on_show_view(self):
-        arcade.set_background_color((47, 16, 48))
+        arcade.set_background_color((30, 15, 40))
 
     def on_draw(self):
         self.clear()
-        arcade.draw_text("SALVAR PONTUAÇÃO", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
-        arcade.draw_text(f"Pontos: {self.pontos} | Tempo: {self.tempo:.1f}s", 400, 390, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("Digite seu nome e pressione ENTER:", 400, 300, arcade.color.WHITE, 16, anchor_x="center")
-        arcade.draw_text(self.nome_jogador + "_", 400, 250, arcade.color.WHITE, font_size=24, anchor_x="center")
+
+        arcade.draw_rect_filled(arcade.XYWH(400, 310, 600, 400), (20, 10, 30, 230))
+        arcade.draw_rect_outline(arcade.XYWH(400, 310, 600, 400), arcade.color.CYAN, 2)
+
+        arcade.draw_text("SALVAR PONTUAÇÃO", 400, 440, arcade.color.GOLD, 26, anchor_x="center")
+        arcade.draw_text(f"Pontos: {self.pontos} | Tempo: {self.tempo:.1f}s", 400, 390, arcade.color.WHITE, 18, anchor_x="center")
+        
+        arcade.draw_text("Digite seu nome (máx. 15 caracteres):", 400, 310, arcade.color.LIGHT_BLUE, 15, anchor_x="center")
+
+        arcade.draw_rect_filled(arcade.XYWH(400, 255, 360, 45), (10, 5, 20, 250))
+        arcade.draw_rect_outline(arcade.XYWH(400, 255, 360, 45), arcade.color.PURPLE, 2)
+        
+        texto_exibicao = self.nome_jogador + "_"
+        arcade.draw_text(texto_exibicao, 400, 242, arcade.color.YELLOW, 22, anchor_x="center")
+
+        arcade.draw_text("Pressione ENTER para salvar ou BACKSPACE para apagar", 400, 120, arcade.color.GRAY, 13, anchor_x="center")
 
     def on_text(self, text):
         if len(self.nome_jogador) < 15:
@@ -76,22 +88,26 @@ class TelaRanking(arcade.View):
                             .limit(10))
 
     def on_show_view(self):
-        arcade.set_background_color((47, 16, 48))
+        arcade.set_background_color((30, 15, 40))
 
     def on_draw(self):
         self.clear()
-        arcade.draw_text("🏆 RANKING - TOP 10", 400, 520, arcade.color.GOLD, 28, anchor_x="center")
+
+        arcade.draw_rect_filled(arcade.XYWH(400, 310, 650, 460), (20, 10, 30, 220))
+        arcade.draw_rect_outline(arcade.XYWH(400, 310, 650, 460), arcade.color.GOLD, 2)
+
+        arcade.draw_text("🏆 RANKING - TOP 10", 400, 500, arcade.color.GOLD, 26, anchor_x="center")
         
         if not self.melhores:
-            arcade.draw_text("Nenhuma pontuação registrada ainda!", 400, 300, arcade.color.WHITE, 18, anchor_x="center")
+            arcade.draw_text("Nenhuma pontuação registrada ainda!", 400, 300, arcade.color.WHITE, 16, anchor_x="center")
         else:
-            y_inicial = 450
+            y_inicial = 440
             for i, p in enumerate(self.melhores, 1):
                 texto = f"{i}º - {p.nome_jogador} : {p.pontos} pts ({p.tempo_partida:.1f}s)"
-                arcade.draw_text(texto, 400, y_inicial, arcade.color.WHITE, 16, anchor_x="center")
-                y_inicial -= 35
+                arcade.draw_text(texto, 400, y_inicial, arcade.color.WHITE, 15, anchor_x="center")
+                y_inicial -= 32
 
-        arcade.draw_text("Pressione M para voltar ao Menu", 400, 60, arcade.color.GRAY, 14, anchor_x="center")
+        arcade.draw_text("Pressione M para voltar ao Menu", 400, 65, arcade.color.CYAN, 14, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.M:
@@ -102,6 +118,27 @@ class Bloco(arcade.Sprite):
         super().__init__("Jogo/bloco.png", scale = 0.12)
         self.center_x = x
         self.center_y = y
+
+        self.escala_base = 0.12
+        self.forca_quique = 0.0
+
+    def quicar(self):
+        if self.forca_quique == 0:
+            self.forca_quique = 1.0
+
+    def update(self, delta_time: float = 1/60):
+        super().update()
+        
+        if self.forca_quique > 0:
+            self.forca_quique -= 8.0 * delta_time
+            if self.forca_quique < 0:
+                self.forca_quique = 0
+            
+            import math
+            fator = math.sin(self.forca_quique * math.pi) * 0.05
+            self.scale = self.escala_base + fator
+        else:
+            self.scale = self.escala_base
 
 class Player(arcade.Sprite):
     def __init__(self):
@@ -248,9 +285,60 @@ class InimigoEspecial(arcade.Sprite):
         self.center_x = random.randint(50, 750)
         self.center_y = 90
 
+class CoracaoVida(arcade.Sprite):
+        def __init__(self, x: float, y: float):
+            sheet = arcade.load_spritesheet("Jogo/spritesheet_coracao.png") 
+            
+            self.quadros = list(sheet.get_texture_grid(
+                size=(45, 51),  
+                columns=16,
+                count=16
+            ))
+            
+            super().__init__(self.quadros[0], scale=0.8)
+            self.center_x = x
+            self.center_y = y
+            self.quadro_atual = 0.0
+
+        def update(self, delta_time):
+            self.quadro_atual += 8 * delta_time
+            indice = int(self.quadro_atual) % 8
+            self.texture = self.quadros[indice]
+
+class CoracaoSumindo(arcade.Sprite):
+    def __init__(self, x: float, y: float, quadros_totais: list):
+
+        super().__init__(quadros_totais[8], scale=0.8)
+        self.center_x = x
+        self.center_y = y
+        self.quadros = quadros_totais
+        self.quadro_atual = 8.0 
+        self.tempo_animacao = 0.0
+
+    def update(self, delta_time: float = 1/60):
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.1:  
+            self.tempo_animacao = 0.0
+            self.quadro_atual += 1
+
+            if self.quadro_atual >= len(self.quadros) or self.quadro_atual > 15:
+                self.remove_from_sprite_lists()
+                return
+
+            self.texture = self.quadros[int(self.quadro_atual)]
+
 class Moeda(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/estrela.png", scale = 1.5)
+        sheet = arcade.load_spritesheet("Jogo/spritesheet_estrela.png")
+
+        self.quadros = list(sheet.get_texture_grid(
+            size=(126, 121),
+            columns=8,
+            count=8
+        ))
+
+        super().__init__(self.quadros[0], scale=0.5)
+        self.quadro_atual = 0.0
 
     def update(self, delta_time):
         self.center_x += self.change_x
@@ -261,9 +349,22 @@ class Moeda(arcade.Sprite):
         if self.top > 600 or self.bottom < 0:
             self.change_y = 0 
 
+        self.quadro_atual += 6 * delta_time
+        indice = int(self.quadro_atual) % 4
+        self.texture = self.quadros[indice]
+
 class MoedaEspecial(arcade.Sprite):
     def __init__(self):
-        super().__init__("Jogo/estrela.png", scale = 1.5)
+        sheet = arcade.load_spritesheet("Jogo/spritesheet_estrela.png")
+
+        self.quadros = list(sheet.get_texture_grid(
+                    size=(126, 121),
+                    columns=8,
+                    count=8
+                ))
+        
+        super().__init__(self.quadros[0], scale=0.5)
+        self.quadro_atual = 0.0
 
     def update(self, delta_time):
         self.center_x += self.change_x
@@ -274,22 +375,57 @@ class MoedaEspecial(arcade.Sprite):
         if self.top > 600 or self.bottom < 0:
                 self.change_y *= -1
 
+        self.quadro_atual += 6 * delta_time
+        indice = int(self.quadro_atual) % 4
+        self.texture = self.quadros[indice]
+
+class ExplosaoMoeda(arcade.Sprite):
+    def __init__(self, x: float, y: float, quadros_totais: list):
+        super().__init__(quadros_totais[4], scale=0.5)
+        self.center_x = x
+        self.center_y = y
+        self.quadros = quadros_totais
+        self.quadro_atual = 4.0 
+        self.tempo_animacao = 0.0
+
+    def update(self, delta_time: float = 1/60):
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.15:
+            self.tempo_animacao = 0.0
+            self.quadro_atual += 1
+
+            if self.quadro_atual >= len(self.quadros):
+                self.remove_from_sprite_lists()
+                return
+
+            self.texture = self.quadros[int(self.quadro_atual)]
+
 class InstrucoesView(arcade.View):
     def on_show_view(self):
-        arcade.set_background_color((47, 16, 48))
+        arcade.set_background_color((30, 15, 40))
 
     def on_draw(self):
         self.clear()
 
-        arcade.draw_text("INSTRUÇÕES", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
+        arcade.draw_rect_filled(arcade.XYWH(400, 310, 600, 420), (20, 10, 30, 220))
+        arcade.draw_rect_outline(arcade.XYWH(400, 310, 600, 420), arcade.color.CYAN, 2)
 
-        arcade.draw_text("Use W A S D para mover o jogador", 400, 360, arcade.color.WHITE, 18, anchor_x="center")
-        arcade.draw_text("Colete moedas para ganhar pontos", 400, 320, arcade.color.WHITE, 18, anchor_x="center")
-        arcade.draw_text("Moeda especial vale +5 pontos", 400, 280, arcade.color.WHITE, 18, anchor_x="center")
-        arcade.draw_text("Evite os inimigos (-1 ponto)", 400, 240, arcade.color.WHITE, 18, anchor_x="center")
-        arcade.draw_text("O inimigo especial te persegue!", 400, 200, arcade.color.WHITE, 18, anchor_x="center")
+        arcade.draw_text("INSTRUÇÕES", 400, 470, arcade.color.GOLD, 28, anchor_x="center")
 
-        arcade.draw_text("Pressione M para voltar ao menu", 400, 120, arcade.color.WHITE, 16, anchor_x="center")
+        comandos = [
+            "Use W A S D para mover o jogador",
+            "Colete moedas para ganhar pontos",
+            "Moeda especial vale +5 pontos",
+            "Evite os inimigos (-1 ponto e perde vida)",
+            "O inimigo especial te persegue ativamente!"
+        ]
+
+        y = 410
+        for texto in comandos:
+            arcade.draw_text(f"• {texto}", 140, y, arcade.color.WHITE, 16)
+            y -= 35
+
+        arcade.draw_text("Pressione M ou ESC para voltar ao menu", 400, 120, arcade.color.CYAN, 14, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.M or key == arcade.key.ESCAPE:
@@ -299,27 +435,29 @@ class SobreView(arcade.View):
     def __init__(self):
         super().__init__()
         self.autora_sprite = arcade.SpriteList()
-
         self.avatar = arcade.Sprite("Jogo/mica.png", scale=0.5) 
         self.avatar.center_x = 400
-        self.avatar.center_y = 170
+        self.avatar.center_y = 180
         self.autora_sprite.append(self.avatar)
 
     def on_show_view(self):
-        arcade.set_background_color((47, 16, 48))
+        arcade.set_background_color((30, 15, 40))
 
     def on_draw(self):
         self.clear()
 
-        arcade.draw_text("SOBRE O JOGO", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
+        arcade.draw_rect_filled(arcade.XYWH(400, 320, 600, 440), (20, 10, 30, 220))
+        arcade.draw_rect_outline(arcade.XYWH(400, 320, 600, 440), arcade.color.CYAN, 2)
 
-        arcade.draw_text("Jogo desenvolvido com Python Arcade", 400, 350, arcade.color.WHITE, 18, anchor_x="center")
-        arcade.draw_text("Exercício de Programação Orientada a Objetos", 400, 310, arcade.color.WHITE, 18, anchor_x="center")
+        arcade.draw_text("SOBRE O JOGO", 400, 490, arcade.color.GOLD, 28, anchor_x="center")
 
-        arcade.draw_text("Autora: Micaelly Victoria Peixoto de Oliveira", 400, 250, arcade.color.WHITE, 18, anchor_x="center")
+        arcade.draw_text("Jogo desenvolvido com Python Arcade", 400, 410, arcade.color.WHITE, 16, anchor_x="center")
+        arcade.draw_text("Exercício de Programação Orientada a Objetos", 400, 370, arcade.color.WHITE, 16, anchor_x="center")
+        arcade.draw_text("Autora: Micaelly Victoria Peixoto de Oliveira", 400, 320, arcade.color.LIGHT_GREEN, 16, anchor_x="center")
+
         self.autora_sprite.draw()
 
-        arcade.draw_text("Pressione M para voltar ao menu", 400, 80, arcade.color.WHITE, 16, anchor_x="center")
+        arcade.draw_text("Pressione M ou ESC para voltar ao menu", 400, 80, arcade.color.CYAN, 14, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.M or key == arcade.key.ESCAPE:
@@ -330,24 +468,63 @@ class MenuView(arcade.View):
         super().__init__()
 
         self.fundo_menu = arcade.load_texture("Jogo/fundo_menu.png")
+        self.logo_titulo = arcade.load_texture("Jogo/logo_titulo.png")
+
+        self.opcoes = [
+            ("[J] Jogar", lambda: self.window.show_view(JogoView())),
+            ("[R] Ver Ranking", lambda: self.window.show_view(TelaRanking())),
+            ("[I] Instruções", lambda: self.window.show_view(InstrucoesView())),
+            ("[S] Sobre", lambda: self.window.show_view(SobreView())),
+            ("[ESC] Sair", lambda: arcade.close_window())
+        ]
+        self.selecionado = 0
+        self.tempo_clique = 0.0
 
     def on_show_view(self):
         pass
 
     def on_draw(self):
         self.clear()
-
         arcade.draw_texture_rect(self.fundo_menu, arcade.XYWH(400, 300, 800, 600))
 
-        arcade.draw_text("Cosmic Run", 400, 450, arcade.color.WHITE, 30, anchor_x="center")
-        arcade.draw_text("[J] Jogar", 400, 400, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[R] Ver Ranking", 400, 350, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[I] Instruções", 400, 300, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[S] Sobre", 400, 250, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text("[ESC] Sair", 400, 200, arcade.color.WHITE, 20, anchor_x="center")
+        altura_logo = 250
+    
+        proporcao = self.logo_titulo.width / self.logo_titulo.height
+        largura_logo = altura_logo * proporcao
+
+        arcade.draw_texture_rect(
+            self.logo_titulo, 
+            arcade.XYWH(400, 480, largura_logo, altura_logo)
+        )
+
+        y_inicial = 350
+        for i, (texto, acao) in enumerate(self.opcoes):
+            is_selecionado = (i == self.selecionado)
+            
+            cor_fundo = (40, 25, 70, 240) if is_selecionado else (20, 10, 35, 180)
+            cor_borda = arcade.color.CYAN if is_selecionado else arcade.color.PURPLE
+            largura_box = 280 if is_selecionado else 260
+            altura_box = 45 if is_selecionado else 40
+
+            arcade.draw_rect_filled(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_fundo)
+            arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_borda, 2 if is_selecionado else 1)
+            
+            cor_texto = arcade.color.YELLOW if is_selecionado else arcade.color.WHITE
+            arcade.draw_text(texto, 400, y_inicial - 8, cor_texto, 18 if is_selecionado else 16, anchor_x="center")
+
+            y_inicial -= 55
+
+        arcade.draw_text("Use SETAS para navegar e ENTER para selecionar", 400, 40, arcade.color.GRAY, 13, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.J:
+        if key == arcade.key.UP or key == arcade.key.W:
+            self.selecionado = (self.selecionado - 1) % len(self.opcoes)
+        elif key == arcade.key.DOWN or key == arcade.key.S:
+            self.selecionado = (self.selecionado + 1) % len(self.opcoes)
+        elif key == arcade.key.ENTER or key == arcade.key.SPACE:
+            # Executa a ação da opção selecionada
+            self.opcoes[self.selecionado][1]()
+        elif key == arcade.key.J:
             self.window.show_view(JogoView())
         elif key == arcade.key.R:
             self.window.show_view(TelaRanking())
@@ -366,38 +543,70 @@ class GameOverView(arcade.View):
         self.pontuacao_maxima = pontuacao_maxima
 
         self.fundo_game_over = arcade.load_texture("Jogo/fundo_gameover.png")
+        
+        # Opções do menu de Game Over para navegação com setas e ENTER (igual ao menu principal)
+        self.opcoes = [
+            ("Jogar Novamente [R]", lambda: self.window.show_view(JogoView())),
+            ("Salvar e Ver Ranking [K]", lambda: self.window.show_view(TelaNomeView(self.pontuacao, self.tempo))),
+            ("Voltar ao Menu [M]", lambda: self.window.show_view(MenuView())),
+            ("Sair [ESC]", lambda: arcade.close_window())
+        ]
+        self.selecionado = 0
+
+    def on_show_view(self):
+        arcade.set_background_color((30, 15, 40))
 
     def on_draw(self):
         self.clear()
 
         arcade.draw_texture_rect(self.fundo_game_over, arcade.XYWH(400, 300, 800, 600))
 
-        arcade.draw_text("FIM DE JOGO", 400, 480, arcade.color.YELLOW, 30, anchor_x="center")
+        arcade.draw_rect_filled(arcade.XYWH(400, 310, 600, 440), (20, 10, 30, 230))
+        arcade.draw_rect_outline(arcade.XYWH(400, 310, 600, 440), arcade.color.RED_DEVIL, 2)
+
+        arcade.draw_text("FIM DE JOGO", 400, 475, arcade.color.YELLOW, 28, anchor_x="center")
 
         if self.pontuacao >= self.pontuacao_maxima:
-            arcade.draw_text("EXCELENTE! PARABÉNS!", 400, 420, arcade.color.GREEN, 22, anchor_x="center")
-            arcade.draw_text("Você escapou de todos os inimigos perfeitamente!", 400, 380, arcade.color.LIGHT_GREEN, 16, anchor_x="center")
+            arcade.draw_text("EXCELENTE! PARABÉNS!", 400, 430, arcade.color.GREEN, 18, anchor_x="center")
+            arcade.draw_text("Você escapou de todos os inimigos perfeitamente!", 400, 405, arcade.color.LIGHT_GREEN, 13, anchor_x="center")
         else:
-            arcade.draw_text("PARABÉNS POR CONCLUIR!", 400, 420, arcade.color.WHITE, 20, anchor_x="center")
+            arcade.draw_text("PARABÉNS POR CONCLUIR!", 400, 420, arcade.color.WHITE, 16, anchor_x="center")
 
-        arcade.draw_text(f"Pontuação Final: {self.pontuacao} / {self.pontuacao_maxima}", 400, 300, arcade.color.WHITE, 20, anchor_x="center")
-        arcade.draw_text(f"Tempo Total: {self.tempo:.2f}s", 400, 260, arcade.color.WHITE, 20, anchor_x="center")
+        arcade.draw_text(f"Pontuação Final: {self.pontuacao} / {self.pontuacao_maxima}", 400, 360, arcade.color.WHITE, 16, anchor_x="center")
+        arcade.draw_text(f"Tempo Total: {self.tempo:.2f}s", 400, 325, arcade.color.CYAN, 16, anchor_x="center")
 
-        arcade.draw_text("Pressione M para voltar ao Menu", 400, 180, arcade.color.GRAY, 16, anchor_x="center")
-        arcade.draw_text("Pressione R para Jogar Novamente", 400, 140, arcade.color.GREEN, 16, anchor_x="center")
-        arcade.draw_text("Pressione K para Salvar e ver o Ranking", 400, 100, arcade.color.CYAN, 16, anchor_x="center")
-        arcade.draw_text("Pressione ESC para Sair", 400, 60, arcade.color.RED, 16, anchor_x="center")
+        y_inicial = 260
+        for i, (texto, acao) in enumerate(self.opcoes):
+            is_selecionado = (i == self.selecionado)
+            
+            cor_fundo = (50, 20, 30, 240) if is_selecionado else (25, 10, 20, 180)
+            cor_borda = arcade.color.YELLOW if is_selecionado else arcade.color.DARK_RED
+            largura_box = 320 if is_selecionado else 300
+            altura_box = 36 if is_selecionado else 32
+
+            arcade.draw_rect_filled(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_fundo)
+            arcade.draw_rect_outline(arcade.XYWH(400, y_inicial, largura_box, altura_box), cor_borda, 2 if is_selecionado else 1)
+            
+            cor_texto = arcade.color.YELLOW if is_selecionado else arcade.color.WHITE
+            arcade.draw_text(texto, 400, y_inicial - 6, cor_texto, 15 if is_selecionado else 14, anchor_x="center")
+
+            y_inicial -= 45
+
+        arcade.draw_text("Use SETAS para navegar e ENTER para selecionar (ou use as teclas de atalho)", 400, 50, arcade.color.GRAY, 12, anchor_x="center")
 
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.ESCAPE:
+        if key == arcade.key.UP or key == arcade.key.W:
+            self.selecionado = (self.selecionado - 1) % len(self.opcoes)
+        elif key == arcade.key.DOWN or key == arcade.key.S:
+            self.selecionado = (self.selecionado + 1) % len(self.opcoes)
+        elif key == arcade.key.ENTER or key == arcade.key.SPACE:
+            self.opcoes[self.selecionado][1]()
+        elif key == arcade.key.ESCAPE:
             arcade.close_window() 
-
         elif key == arcade.key.R:
             self.window.show_view(JogoView())
-
-        if key == arcade.key.M:
+        elif key == arcade.key.M:
             self.window.show_view(MenuView())
-
         elif key == arcade.key.K:
             self.window.show_view(TelaNomeView(self.pontuacao, self.tempo))
 
@@ -440,13 +649,20 @@ class JogoView(arcade.View):
 
     def setup(self):
 
+        self.estava_no_ar = False
+
         self.mensagem = ""
         self.tempo_mensagem = 0
 
         self.tempo = 0
         self.jogo_finalizado = False
         self.pontuacao = 0 
+
         self.vidas = 3
+        self.sprite_vidas = arcade.SpriteList()
+        for i in range(self.vidas):
+            coracao = CoracaoVida(x=640 + (i * 35), y=562)
+            self.sprite_vidas.append(coracao)
 
         self.sprite_efeitos = arcade.SpriteList()
 
@@ -529,6 +745,14 @@ class JogoView(arcade.View):
         self.sprite_blocos.draw()
         self.sprite_efeitos.draw()
 
+        arcade.draw_rect_filled(arcade.XYWH(400, 570, 800, 60), (15, 10, 25, 220))
+        arcade.draw_line(0, 540, 800, 540, arcade.color.CYAN, 2)
+
+        arcade.draw_text(f"⏱ TEMPO: {self.tempo:.1f}s", 20, 555, arcade.color.LIGHT_BLUE, 14)
+        arcade.draw_text(f"⭐ PONTOS: {self.pontuacao} / {self.pontuacao_maxima}", 230, 555, arcade.color.GOLD, 16)
+        arcade.draw_text("VIDAS:", 540, 555, arcade.color.RED, 14)
+        self.sprite_vidas.draw()
+
         self.window.default_camera.use()
 
         if self.tempo_flash > 0:
@@ -545,16 +769,17 @@ class JogoView(arcade.View):
                 arcade.XYWH(LARGURA / 2, ALTURA / 2, LARGURA, ALTURA),
                 (255, 0, 0, alpha)
             )
-
-        arcade.draw_text(f"Tempo: {self.tempo:.2f}s", 10, 570, arcade.color.WHITE, 20)
-        arcade.draw_text(f"Pontuação: {self.pontuacao}", 10, 540, arcade.color.YELLOW, 20)
-        arcade.draw_text(f"Vidas: {self.vidas}", 10, 510, arcade.color.RED, 20)
-
+        
         if self.tempo_mensagem > 0:
             arcade.draw_text(self.mensagem, 400, 500, arcade.color.RED, 20, anchor_x="center")
+        
+        self.sprite_efeitos.draw()
 
     def on_update(self, delta_time):
 
+        for bloco in self.sprite_blocos:
+            bloco.update(delta_time)
+    
         if self.tempo_invencivel > 0:
             pass
         else:
@@ -600,13 +825,19 @@ class JogoView(arcade.View):
                 x = (self.jogador.center_x + primeiro_inimigo.center_x) / 2
                 y = (self.jogador.center_y + primeiro_inimigo.center_y) / 2
 
-                explosao = Explosao(x, y, self.quadros_explosao, scale=0.8)
+                explosao = Explosao_inimigo(x, y, self.quadros_explosao, scale=0.8)
                 self.sprite_efeitos.append(explosao)
 
                 for inimigo in inimigos_colididos:
                     inimigo.aplicar_efeito(self)
 
                 self.vidas -= 1
+
+                if len(self.sprite_vidas) > 0:
+                    coracao_removido = self.sprite_vidas.pop()
+
+                    efeito_sumico = CoracaoSumindo(coracao_removido.center_x, coracao_removido.center_y, coracao_removido.quadros)
+                    self.sprite_efeitos.append(efeito_sumico)
 
                 self.mensagem = "Você foi atingido!"
                 self.tempo_mensagem = 1.5
@@ -626,7 +857,7 @@ class JogoView(arcade.View):
 
         self.engine_fisica.update()
         self.engine_fisica_inimigo_especial.update()
-
+            
         largura_meio_sprite = self.jogador.width / 2
 
         if self.jogador.left < 0:
@@ -640,6 +871,7 @@ class JogoView(arcade.View):
         if not self.jogo_finalizado:
             self.tempo += delta_time
 
+            self.sprite_vidas.update(delta_time)
             self.sprite_jogador.update(delta_time)
             self.sprite_moeda.update(delta_time)
             self.sprite_inimigos.update(delta_time)
@@ -647,6 +879,10 @@ class JogoView(arcade.View):
 
             moedas_colididas = arcade.check_for_collision_with_list(self.jogador, self.sprite_moeda)
             for moeda in moedas_colididas:
+
+                efeito_coleta = ExplosaoMoeda(moeda.center_x, moeda.center_y, moeda.quadros)
+                self.sprite_efeitos.append(efeito_coleta)
+
                 moeda.remove_from_sprite_lists()
                 if moeda == self.moeda_especial:
                     self.pontuacao += 5
