@@ -32,12 +32,6 @@ FUNDO_FRAMES = 14
 FUNDO_COLUNAS = 14      
 FUNDO_TEMPO_FRAME = 0.3
 
-PLATAFORMAS = [
-    (350, 250, 3), (900, 250, 3),
-    (450, 450, 3), (1000, 450, 3),
-    (350, 650, 3), (900, 650, 3),
-]
-
 class Explosao_inimigo(arcade.Sprite):
     def __init__(self, x: float, y: float, quadros: list, scale: float = 1.0):
         super().__init__(quadros[0], scale=scale)
@@ -166,6 +160,24 @@ class Bloco(arcade.Sprite):
             self.scale = self.escala_base + fator
         else:
             self.scale = self.escala_base
+
+class PlataformaMovel(Bloco):
+    def __init__(self, x: float, y: float, distancia_movimento: float = 100, velocidade: float = 1.5):
+        super().__init__(x, y)
+        self.centro_inicial_x = x
+        self.distancia_movimento = distancia_movimento
+        self.change_x = velocidade
+
+    def update(self, delta_time: float = 1/60):
+        super().update(delta_time)
+        self.center_x += self.change_x
+
+        if self.center_x > self.centro_inicial_x + self.distancia_movimento:
+            self.center_x = self.centro_inicial_x + self.distancia_movimento
+            self.change_x *= -1
+        elif self.center_x < self.centro_inicial_x - self.distancia_movimento:
+            self.center_x = self.centro_inicial_x - self.distancia_movimento
+            self.change_x *= -1
 
 class Player(arcade.Sprite):
     def __init__(self):
@@ -686,14 +698,6 @@ class JogoView(arcade.View):
             chao = Bloco(x=x, y=30)
             self.sprite_blocos.append(chao)
 
-        for x_inicial, y, quantidade in PLATAFORMAS:
-            ultimo_x = x_inicial + (quantidade - 1) * 64
-            if ultimo_x + 32 > LARGURA_MAPA or y + 100 > ALTURA_MAPA:
-                continue
-            for i in range(quantidade):
-                plataforma = Bloco(x_inicial + i * 64, y)
-                self.sprite_blocos.append(plataforma)
-
         self.velocidade = 3
 
         sheet_fundo = arcade.load_spritesheet(FUNDO_ARQUIVO)
@@ -711,6 +715,25 @@ class JogoView(arcade.View):
         self.tecla_direita_pressionada = False
 
     def setup(self):
+
+        PLATAFORMAS_FIXAS = [
+            (350, 250, 3), (900, 250, 3),
+            (350, 650, 3), (900, 650, 3),
+        ]
+
+        PLATAFORMAS_MOVEIS = [
+            (450, 450, 3), (1000, 450, 3),
+        ]
+
+        for x_inicial, y, quantidade in PLATAFORMAS_FIXAS:
+            for i in range(quantidade):
+                plataforma = Bloco(x_inicial + i * 64, y)
+                self.sprite_blocos.append(plataforma)
+
+        for x_inicial, y, quantidade in PLATAFORMAS_MOVEIS:
+            for i in range(quantidade):
+                plataforma = PlataformaMovel(x_inicial + i * 64, y, distancia_movimento=120, velocidade=0.6)
+                self.sprite_blocos.append(plataforma)
 
         self.estava_no_ar = False
 
@@ -841,6 +864,17 @@ class JogoView(arcade.View):
             arcade.draw_text(self.mensagem, 400, 500, arcade.color.RED, 20, anchor_x="center")
 
     def on_update(self, delta_time):
+
+        for bloco in self.sprite_blocos:
+            bloco.update(delta_time)
+
+        self.jogador.center_y -= 2
+        plataformas_abaixo = arcade.check_for_collision_with_list(self.jogador, self.sprite_blocos)
+        self.jogador.center_y += 2
+
+        for bloco in plataformas_abaixo:
+            if isinstance(bloco, PlataformaMovel):
+                self.jogador.center_x += bloco.change_x
 
         self.tempo_fundo += delta_time
         if self.tempo_fundo >= FUNDO_TEMPO_FRAME:
