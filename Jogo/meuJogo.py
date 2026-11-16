@@ -7,7 +7,7 @@ from pontuacao import inicializar_banco
 ALTURA = 600
 LARGURA = 800
 
-NUM_MOEDAS = 25
+NUM_MOEDAS = 26
 NUM_INIMIGOS = 2
 
 POSICAO_INICIAL_JOGADOR = (40, 100)
@@ -33,9 +33,9 @@ FUNDO_COLUNAS = 14
 FUNDO_TEMPO_FRAME = 0.3
 
 PLATAFORMAS = [
-    (200, 250, 3), (700, 250, 3), (1150, 250, 3),
+    (350, 250, 3), (900, 250, 3),
     (450, 450, 3), (1000, 450, 3),
-    (250, 650, 3), (800, 650, 3),
+    (350, 650, 3), (900, 650, 3),
 ]
 
 class Explosao_inimigo(arcade.Sprite):
@@ -953,6 +953,7 @@ class JogoView(arcade.View):
             if len(self.sprite_moeda) == 0:
                 game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
                 self.window.show_view(game_over)
+                return
 
             if self.tempo_mensagem > 0:
                 self.tempo_mensagem -= delta_time
