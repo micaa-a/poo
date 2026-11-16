@@ -142,14 +142,19 @@ class Bloco(arcade.Sprite):
 
         self.escala_base = 0.12
         self.forca_quique = 0.0
+        self.cooldown_quique = 0.0
 
     def quicar(self):
-        if self.forca_quique == 0:
+        if self.forca_quique == 0 and self.cooldown_quique <= 0:
             self.forca_quique = 1.0
+            self.cooldown_quique = 0.5
 
     def update(self, delta_time: float = 1/60):
         super().update()
         
+        if self.cooldown_quique > 0:
+            self.cooldown_quique -= delta_time
+
         if self.forca_quique > 0:
             self.forca_quique -= 8.0 * delta_time
             if self.forca_quique < 0:
@@ -186,10 +191,10 @@ class Player(arcade.Sprite):
         self.textura_direita = arcade.load_texture("Jogo/player_direita.png")
         self.textura_esquerda = arcade.load_texture("Jogo/player_esquerda.png")"""
 
-        sheet_direita = arcade.load_spritesheet("Jogo/spritesheet.png")
+        sheet_direita = arcade.load_spritesheet("Jogo/spritesheet_player.png")
 
         quadros_direita = sheet_direita.get_texture_grid(
-            size = (139, 164),
+            size = (240, 372),
             columns = 6,
             count = 6
         )
@@ -199,7 +204,7 @@ class Player(arcade.Sprite):
         for frame in quadros_direita:
             quadros_esquerda.append(frame.flip_left_right())
 
-        super().__init__(quadros_direita[0], scale = 0.5)
+        super().__init__(quadros_direita[0], scale = 0.25)
 
         self.textura_parado_d = quadros_direita[0]
         self.textura_parado_e = quadros_esquerda[0]
@@ -716,6 +721,8 @@ class JogoView(arcade.View):
 
     def setup(self):
 
+        self.blocos_tocados_anteriormente = set()
+
         PLATAFORMAS_FIXAS = [
             (350, 250, 3), (900, 250, 3),
             (350, 650, 3), (900, 650, 3),
@@ -867,14 +874,6 @@ class JogoView(arcade.View):
 
         for bloco in self.sprite_blocos:
             bloco.update(delta_time)
-
-        self.jogador.center_y -= 2
-        plataformas_abaixo = arcade.check_for_collision_with_list(self.jogador, self.sprite_blocos)
-        self.jogador.center_y += 2
-
-        for bloco in plataformas_abaixo:
-            if isinstance(bloco, PlataformaMovel):
-                self.jogador.center_x += bloco.change_x
 
         self.tempo_fundo += delta_time
         if self.tempo_fundo >= FUNDO_TEMPO_FRAME:
