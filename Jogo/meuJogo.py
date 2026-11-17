@@ -300,8 +300,44 @@ class Inimigo(arcade.Sprite):
             else:
                 self.texture = self.quadros_esquerda[self.quadro_atual]
 
+class Projetil(arcade.Sprite):
+    def __init__(self, x: float, y: float, alvo_x: float, alvo_y: float,
+                 quadros: list, velocidade: float = 6, scale: float = 0.4):
+        super().__init__(quadros[0], scale=scale)
+        self.center_x = x
+        self.center_y = y
+
+        self.quadros = quadros
+        self.quadro_atual = 0
+        self.tempo_animacao = 0.0
+
+        dx = alvo_x - x
+        dy = alvo_y - y
+        distancia = math.hypot(dx, dy) or 1
+        self.change_x = dx / distancia * velocidade
+        self.change_y = dy / distancia * velocidade
+
+        self.angle = -math.degrees(math.atan2(dy, dx))
+
+    def update(self, delta_time: float = 1/60):
+        self.center_x += self.change_x
+        self.center_y += self.change_y
+
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.05:
+            self.tempo_animacao = 0.0
+            self.quadro_atual = (self.quadro_atual + 1) % len(self.quadros)
+            self.texture = self.quadros[self.quadro_atual]
+
+        if (self.right < 0 or self.left > LARGURA_MAPA
+                or self.top < 0 or self.bottom > ALTURA_MAPA):
+            self.remove_from_sprite_lists()
+
 class InimigoEspecial(arcade.Sprite):
     def __init__(self, jogo):
+
+        self.arma_offset_x = 30
+        self.arma_offset_y = 27
 
         sheet_inimigo = arcade.load_spritesheet("Jogo/spritesheet_inimigo_especial.png")
         quadros_inimigo = list(sheet_inimigo.get_texture_grid(
@@ -323,30 +359,77 @@ class InimigoEspecial(arcade.Sprite):
         self.quadro_atual = 0
         self.tempo_animacao = 0.0
         self.virado_para = "DIREITA"
-        
+
+        sheet_tiro = arcade.load_spritesheet("Jogo/spritesheet_tiro_inimigo.png")
+        self.quadros_tiro = list(sheet_tiro.get_texture_grid(
+            size=(130, 129),   
+            columns=8,      
+            count=8    
+        ))
+
+        self.tempo_tiro = 1.0        # espera inicial antes do 1º tiro
+        self.intervalo_tiro = 2.0    # segundos entre tiros
+        self.alcance_tiro = 500      # só atira se o jogador estiver perto
+        self.tempo_parado = 0.0      # > 0 = parado, preparando o tiro
+        self.duracao_parada = 0.5    # tempo parado antes de atirar
+
     def update(self, delta_time):
         jogador = self.jogo.jogador
         velocidade_inimigo = 1.5
 
         if jogador.center_x > self.center_x:
-            self.change_x = velocidade_inimigo
             self.virado_para = "DIREITA"
         else:
-            self.change_x = -velocidade_inimigo
             self.virado_para = "ESQUERDA"
 
-        if self.change_x != 0:
-            self.tempo_animacao += delta_time
-            if self.tempo_animacao >= 0.15:
-                self.tempo_animacao = 0.0
-                self.quadro_atual = (self.quadro_atual + 1) % len(self.passos_direita)
-                
-                if self.virado_para == "DIREITA":
-                    self.texture = self.passos_direita[self.quadro_atual]
-                else:
-                    self.texture = self.passos_esquerda[self.quadro_atual]
+        if self.tempo_parado > 0:
+            self.change_x = 0
+            self.quadro_atual = 0
+            self.tempo_animacao = 0.0
+            if self.virado_para == "DIREITA":
+                self.texture = self.passos_direita[0]
+            else:
+                self.texture = self.passos_esquerda[0]
+
+            self.tempo_parado -= delta_time
+            if self.tempo_parado <= 0:
+                self.atirar()
+                self.tempo_tiro = self.intervalo_tiro
+            return
+
+        if self.virado_para == "DIREITA":
+            self.change_x = velocidade_inimigo
+        else:
+            self.change_x = -velocidade_inimigo
+
+        self.tempo_animacao += delta_time
+        if self.tempo_animacao >= 0.15:
+            self.tempo_animacao = 0.0
+            self.quadro_atual = (self.quadro_atual + 1) % len(self.passos_direita)
+
+            if self.virado_para == "DIREITA":
+                self.texture = self.passos_direita[self.quadro_atual]
+            else:
+                self.texture = self.passos_esquerda[self.quadro_atual]
+
+        self.tempo_tiro -= delta_time
+        distancia = math.hypot(jogador.center_x - self.center_x,
+                               jogador.center_y - self.center_y)
+        if self.tempo_tiro <= 0 and distancia <= self.alcance_tiro:
+            self.change_x = 0
+            self.tempo_parado = self.duracao_parada
+
+    def atirar(self):
+        jogador = self.jogo.jogador
+        lado = 1 if self.virado_para == "DIREITA" else -1
+        x = self.center_x + lado * self.arma_offset_x
+        y = self.center_y + self.arma_offset_y
+        self.jogo.sprite_projeteis.append(
+            Projetil(x, y, jogador.center_x, jogador.center_y, self.quadros_tiro)
+        )
 
     def aplicar_efeito(self, jogo):
+        self.tempo_parado = 0.0 
         jogo.pontuacao -= 1
         for _ in range(100):
             x = random.randint(50, LARGURA_MAPA - 50)
@@ -895,6 +978,7 @@ class JogoView(arcade.View):
         self.moeda_especial.change_x = random.choice([-1, 1]) * self.velocidade
         self.moeda_especial.change_y = random.choice([-1, 1]) * (self.velocidade - 1)
         self.sprite_moeda.append(self.moeda_especial)
+        self.sprite_projeteis = arcade.SpriteList()
 
         for i in range(NUM_MOEDAS):
             moeda_simples = Moeda()
@@ -943,6 +1027,27 @@ class JogoView(arcade.View):
             if not arcade.check_for_collision_with_list(moeda, self.sprite_blocos):
                 return
 
+    def receber_dano(self, x, y):
+        self.tempo_invencivel = TEMPO_INVENCIVEL
+        self.tempo_flash = TEMPO_FLASH
+        self.tempo_tremor = TEMPO_TREMOR
+
+        explosao = Explosao_inimigo(x, y, self.quadros_explosao, scale=0.8)
+        self.sprite_efeitos.append(explosao)
+
+        self.vidas -= 1
+
+        if len(self.sprite_vidas) > 0:
+            coracao_removido = self.sprite_vidas.pop()
+            efeito_sumico = CoracaoSumindo(coracao_removido.center_x, coracao_removido.center_y, coracao_removido.quadros)
+            self.sprite_efeitos_hud.append(efeito_sumico)
+
+        if self.vidas <= 0:
+            game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
+            self.iniciar_fim_de_jogo(game_over, vitoria=False)
+            return True
+        return False
+
     def on_draw(self):
         self.clear()
 
@@ -961,6 +1066,7 @@ class JogoView(arcade.View):
         self.sprite_jogador.draw()
         self.sprite_moeda.draw()
         self.sprite_inimigos.draw()
+        self.sprite_projeteis.draw()
         self.sprite_blocos.draw()
         self.sprite_efeitos.draw()
 
@@ -1051,32 +1157,24 @@ class JogoView(arcade.View):
                 self.jogador, self.sprite_inimigos
             )
             if inimigos_colididos:
-                self.tempo_invencivel = TEMPO_INVENCIVEL
-                self.tempo_flash = TEMPO_FLASH
-                self.tempo_tremor = TEMPO_TREMOR
-
                 primeiro_inimigo = inimigos_colididos[0]
-
                 x = (self.jogador.center_x + primeiro_inimigo.center_x) / 2
                 y = (self.jogador.center_y + primeiro_inimigo.center_y) / 2
-
-                explosao = Explosao_inimigo(x, y, self.quadros_explosao, scale=0.8)
-                self.sprite_efeitos.append(explosao)
 
                 for inimigo in inimigos_colididos:
                     inimigo.aplicar_efeito(self)
 
-                self.vidas -= 1
+                if self.receber_dano(x, y):
+                    return
 
-                if len(self.sprite_vidas) > 0:
-                    coracao_removido = self.sprite_vidas.pop()
-
-                    efeito_sumico = CoracaoSumindo(coracao_removido.center_x, coracao_removido.center_y, coracao_removido.quadros)
-                    self.sprite_efeitos_hud.append(efeito_sumico)
-
-                if self.vidas <= 0:
-                    game_over = GameOverView(self.pontuacao, self.tempo, self.pontuacao_maxima)
-                    self.iniciar_fim_de_jogo(game_over, vitoria=False)
+        self.sprite_projeteis.update(delta_time)
+        for projetil in list(self.sprite_projeteis):
+            if arcade.check_for_collision_with_list(projetil, self.sprite_blocos):
+                projetil.remove_from_sprite_lists()
+                continue
+            if self.tempo_invencivel == 0 and arcade.check_for_collision(projetil, self.jogador):
+                projetil.remove_from_sprite_lists()
+                if self.receber_dano(projetil.center_x, projetil.center_y):
                     return
 
         if self.tempo_invencivel > 0:
